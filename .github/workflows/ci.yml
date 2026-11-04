@@ -30,6 +30,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      infra: ${{ steps.filter.outputs.infra }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v4
@@ -42,6 +43,9 @@ jobs:
               - '.github/scripts/**'
             frontend:
               - 'apps/web/**'
+              - '.github/workflows/ci.yml'
+            infra:
+              - 'infra/**'
               - '.github/workflows/ci.yml'
 
   backend:
@@ -182,6 +186,34 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Checks the important AWS rules (private database, no NAT gateway, ARM64 tasks, ...) on the
+  # CloudFormation that CDK generates. Needs no AWS account.
+  infra:
+    name: infra
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # The CDK library runs on Node.js.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Restore
+        run: dotnet restore
+      - name: Check formatting
+        run: dotnet format --no-restore --verify-no-changes
+      - name: Build
+        run: dotnet build --no-restore -c Release
+      - name: Test
+        run: dotnet test --no-build -c Release
 
   changelog:
     name: changelog

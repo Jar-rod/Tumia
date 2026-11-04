@@ -7,7 +7,7 @@ vault; TUMIIA works out what each file is, proposes where it belongs, and the us
 |---|---|
 | `services/api` | ASP.NET Core API (.NET 10): controllers, use cases, domain rules, database, tests |
 | `apps/web` | React app (Vite). Built separately by the frontend developer |
-| `infra` | AWS CDK infrastructure (later phase) |
+| `infra` | AWS CDK infrastructure (C#) |
 | `docs` | Coding standards (`CONTRIBUTING.md`) and architecture decisions (`adr/`) |
 
 ## Prerequisites
@@ -78,6 +78,26 @@ dotnet ef migrations add <DescriptiveName> --project src/Tumiia.Infrastructure -
 ```
 
 Never edit a migration that has been merged to `main`.
+
+## Infrastructure and deployment
+
+AWS infrastructure is defined with the CDK in C# under `infra/`, all in af-south-1 (Cape Town).
+Deploys are manual: **Actions → Deploy → Run workflow**, choosing `auto`, `frontend`, `backend`, `both` or
+`infra`. The one-off setup (region, CDK bootstrap, GitHub environment) is in `docs/deploy-setup.md`.
+
+Check the infrastructure rules locally (needs Node.js; no AWS account):
+
+```bash
+cd infra
+dotnet test
+```
+
+Build the API image the way AWS runs it:
+
+```bash
+cd services/api
+docker build --platform linux/arm64 -t tumiia-api .
+```
 
 ## Continuous integration
 

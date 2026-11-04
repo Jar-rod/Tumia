@@ -16,13 +16,15 @@ public static class DependencyInjection
     /// <summary>
     /// Adds the database context. The connection string is read when the context is first used,
     /// so the app can still start (for example to generate the OpenAPI file) without one.
+    /// See <see cref="DatabaseConnectionString"/> for where it comes from.
     /// </summary>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<TumiiaDbContext>(options =>
         {
-            var connectionString = configuration.GetConnectionString(ConnectionStringName)
-                ?? throw new InvalidOperationException($"Connection string 'ConnectionStrings:{ConnectionStringName}' is not set.");
+            var connectionString = DatabaseConnectionString.Resolve(configuration)
+                ?? throw new InvalidOperationException(
+                    $"No database configured. Set 'ConnectionStrings:{ConnectionStringName}', or the '{DatabaseConnectionString.SectionName}:Host' settings.");
             TumiiaDbContextOptions.Configure(options, connectionString);
         });
 
