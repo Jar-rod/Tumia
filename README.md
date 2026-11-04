@@ -53,6 +53,16 @@ vault; TUMIIA works out what each file is, proposes where it belongs, and the us
 
 Stop the local services with `docker compose down` (add `-v` to delete the local database too).
 
+## Signing in locally
+
+The API has accounts from the start: register through Swagger UI (`POST /api/v1/auth/register`), then press
+"Authorize" and paste the `accessToken`. Locally the JWT signing key is generated at start-up, so tokens stop
+working when the API restarts. Emails are not sent: a password reset email is written to
+`services/api/src/Tumiia.Api/.dev-emails/`. To make yourself an admin, set `Admin:Emails` (for example with
+`dotnet user-secrets` or an environment variable `Admin__Emails=you@example.com`) and sign in again.
+
+How the React app should handle tokens and the refresh cookie is in `docs/frontend-integration.md`.
+
 ## Run the tests
 
 Docker must be running: the integration tests start their own PostgreSQL container.

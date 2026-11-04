@@ -108,6 +108,9 @@ Copy the `DeployRoleArn` from the output.
    | `ALERT_EMAIL` | the alert address |
    | `CLOUDFRONT_PREFIX_LIST_ID` | from step 3 |
 
+   Optional in the same environment: `ADMIN_EMAILS`, a comma-separated list of emails that get the Admin role when
+   they register or sign in (needed for taxonomy settings and the feedback export). Run `infra` after changing it.
+
 3. Optional, as a **repository** variable (Settings → Secrets and variables → Actions → Variables):
    `ARM64_RUNNER` = `ubuntu-24.04-arm`, if ARM64 runners are available to this repository. The backend image
    then builds natively instead of under emulation, which is several times faster.
@@ -135,6 +138,8 @@ aws sesv2 get-email-identity --region af-south-1 --email-identity <DOMAIN> --que
 **New accounts start in the SES sandbox:** email can only go to addresses you have verified
 (`aws sesv2 create-email-identity --email-identity someone@example.com`). When you are ready for real users,
 request production access in the SES console (Account dashboard → Request production access).
+
+Until production access is granted, password reset emails only reach verified addresses.
 
 ## 12. Frontend
 

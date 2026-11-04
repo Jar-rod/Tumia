@@ -21,7 +21,12 @@ in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-C
 | Npgsql.EntityFrameworkCore.PostgreSQL (+ Npgsql) | 10.0.3 | PostgreSQL provider | PostgreSQL |
 | EFCore.NamingConventions | 10.0.1 | snake_case table and column names | Apache-2.0 |
 | Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore | 10.0.14 | Database check in `/api/v1/health` | MIT |
-| .NET 10 runtime and ASP.NET Core | 10.0 | Runtime | MIT |
+| Microsoft.AspNetCore.Identity.EntityFrameworkCore (+ Identity core and stores) | 10.0.14 | User accounts, password hashing (PBKDF2), lockout, reset tokens | MIT |
+| Microsoft.AspNetCore.DataProtection.EntityFrameworkCore | 10.0.14 | Data Protection keys stored in PostgreSQL | MIT |
+| Microsoft.AspNetCore.Authentication.JwtBearer | 10.0.14 | Checks access tokens | MIT |
+| Microsoft.IdentityModel.JsonWebTokens (+ IdentityModel tokens, protocols) | 8.23.0 / 8.19.2 | Creates and validates JWTs | MIT |
+| AWSSDK.SimpleEmailV2 (+ AWSSDK.Core) | 4.0.106.7 | Sends email through SES | Apache-2.0 |
+| .NET 10 runtime and ASP.NET Core (includes the built-in rate limiter) | 10.0 | Runtime | MIT |
 
 ## Build and development only (not shipped)
 
@@ -34,6 +39,7 @@ in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-C
 | xunit.v3, xunit.runner.visualstudio | 4.0.2, 4.0.1 | Test framework | Apache-2.0 |
 | Shouldly | 4.3.0 | Test assertions | BSD-3-Clause |
 | NSubstitute | 6.2.0 | Test doubles | BSD-3-Clause |
+| Microsoft.Extensions.TimeProvider.Testing | 10.11.0 | Fake clock for expiry tests | MIT |
 | Microsoft.NET.Test.Sdk | 18.11.0 | Test host | MIT |
 | coverlet.collector | 10.1.0 | Line coverage | MIT |
 | Microsoft.AspNetCore.Mvc.Testing | 10.0.14 | In-memory API for integration tests | MIT |

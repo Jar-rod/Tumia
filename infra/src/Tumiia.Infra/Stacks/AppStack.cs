@@ -211,6 +211,8 @@ public sealed class AppStack : Stack
             // Before the first backend deploy there is no image yet; the service then runs zero tasks.
             Image = ContainerImage.FromEcrRepository(repository, settings.ImageTag ?? "not-deployed-yet"),
             PortMappings = [new PortMapping { ContainerPort = ContainerPort }],
+            // A small init process runs as process 1, passing stop signals to the API and letting it exit cleanly.
+            LinuxParameters = new LinuxParameters(this, "LinuxParameters", new LinuxParametersProps { InitProcessEnabled = true }),
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps { LogGroup = CreateLogGroup(names), StreamPrefix = "api" }),
             Environment = ContainerSettings(settings, data, messaging),
             Secrets = ContainerSecrets(names, data),
@@ -241,7 +243,10 @@ public sealed class AppStack : Stack
         });
     }
 
-    /// <summary>Plain (non-secret) settings for the API, as environment variables.</summary>
+    /// <summary>
+    /// Plain (non-secret) settings for the API, as environment variables. Email goes out through SES from
+    /// <c>no-reply@&lt;domain&gt;</c>, and links in emails point at the app's own address.
+    /// </summary>
     private static Dictionary<string, string> ContainerSettings(InfraSettings settings, DataStack data, MessagingStack messaging)
     {
         return new Dictionary<string, string>
@@ -249,9 +254,12 @@ public sealed class AppStack : Stack
             ["ASPNETCORE_ENVIRONMENT"] = "Production",
             ["Swagger__Enabled"] = "false",
             ["Aws__Region"] = InfraSettings.Region,
+            ["App__BaseUrl"] = $"https://{settings.DomainName}",
+            ["Admin__Emails"] = settings.AdminEmails ?? string.Empty,
+            ["Email__Provider"] = "Ses",
+            ["Email__FromAddress"] = $"no-reply@{settings.DomainName}",
             ["Storage__DocumentsBucket"] = data.DocumentsBucket.BucketName,
             ["Queues__DocumentAnalysisUrl"] = messaging.Queue.QueueUrl,
-            ["Email__FromDomain"] = settings.DomainName,
         };
     }
 

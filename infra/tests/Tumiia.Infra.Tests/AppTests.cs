@@ -28,6 +28,23 @@ public class AppTests(SynthesizedStacks stacks)
     }
 
     [Fact]
+    public void Container_RunsUnderAnInitProcess_SoItStopsAndExitsCleanly()
+    {
+        var template = Template.FromStack(stacks.BeforeFirstDeploy.App);
+
+        template.HasResourceProperties("AWS::ECS::TaskDefinition", Match.ObjectLike(new Dictionary<string, object>
+        {
+            ["ContainerDefinitions"] = new object[]
+            {
+                Match.ObjectLike(new Dictionary<string, object>
+                {
+                    ["LinuxParameters"] = Match.ObjectLike(new Dictionary<string, object> { ["InitProcessEnabled"] = true }),
+                }),
+            },
+        }));
+    }
+
+    [Fact]
     public void Service_BeforeTheFirstImageIsDeployed_RunsNoTasks()
     {
         var template = Template.FromStack(stacks.BeforeFirstDeploy.App);
@@ -94,6 +111,20 @@ public class AppTests(SynthesizedStacks stacks)
 
         bedrock["Action"]!.GetValue<string>().ShouldBe("bedrock:InvokeModel");
         bedrock["Resource"]!.ToJsonString().ShouldContain("foundation-model/example.model-v1");
+    }
+
+    [Fact]
+    public void Container_SendsEmailThroughSesWithLinksToTheAppsOwnAddress()
+    {
+        var template = SynthesizedStacks.Json(stacks.WithImageAndBedrock.App);
+        var container = SynthesizedStacks.Resources(template, "AWS::ECS::TaskDefinition").Single()["Properties"]!["ContainerDefinitions"]![0]!;
+
+        var settings = container["Environment"]!.AsArray().ToDictionary(setting => setting!["Name"]!.GetValue<string>(), setting => setting!["Value"]!.ToJsonString());
+
+        settings["Email__Provider"].ShouldBe("\"Ses\"");
+        settings["Email__FromAddress"].ShouldBe($"\"no-reply@{SynthesizedStacks.DomainName}\"");
+        settings["App__BaseUrl"].ShouldBe($"\"https://{SynthesizedStacks.DomainName}\"");
+        settings["Admin__Emails"].ShouldBe("\"owner@example.co.za\"");
     }
 
     [Fact]

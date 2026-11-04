@@ -28,6 +28,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - `docs/deploy-setup.md`: the one-off manual steps (enable af-south-1, CDK bootstrap, JWT key, GitHub environment and variables, SES sandbox).
 - CI job `infra` runs the CDK tests when `infra/` changes.
 
+- User accounts with ASP.NET Core Identity: `POST /api/v1/auth/register`, `login`, `refresh`, `logout`, `forgot-password`, `reset-password` and `GET /api/v1/auth/me`. Passwords need 10+ characters; 5 wrong passwords lock an account for 15 minutes, and every login failure gets the same answer. Access tokens are 15-minute JWTs (HS256); refresh tokens are random, stored only as SHA-256 hashes, rotated on every use, and kept in an HttpOnly, Secure, SameSite=Strict cookie for 14 days. Reusing an already-rotated refresh token ends that whole sign-in. A password reset ends every sign-in of the user.
+- Roles `User` and `Admin`; anyone listed in `Admin:Emails` becomes an Admin when they register or sign in.
+- Password reset emails through Amazon SES (`Email:Provider=Ses` in AWS). Locally, emails are written to `.dev-emails/` instead of being sent. Data Protection keys are stored in PostgreSQL so reset links survive restarts.
+- `audit_events` table recording `Registered`, `LoginSucceeded`, `LoginFailed`, `LockedOut`, `PasswordResetRequested`, `PasswordReset`, `RefreshTokenReuseDetected` and `LoggedOut`, with user id, IP, time and success.
+- Rate limiting (built-in ASP.NET Core): sign-in endpoints 5 a minute per client IP, upload requests 30 a minute per user, everything 120 a minute per user or IP. Over the limit: 429 with `Retry-After` and a ProblemDetails body. Limits are in the `RateLimiting` configuration section.
+- Outside Development the API rejects (403) requests without the correct `X-Origin-Verify` header, i.e. that did not come through CloudFront. The load balancer's health check (`/api/v1/health`) is exempt.
+- `ClientIpResolver`: uses CloudFront's `CloudFront-Viewer-Address` header only when the origin check passed, otherwise the connection address.
+- `docs/frontend-integration.md` with the sign-in rules for the React app (token in memory, refresh on load and after a 401, `credentials: "include"`).
+- Migration `AddUsersRefreshTokensAndAuditEvents`: `users`, `roles` (User and Admin seeded), `user_roles`, `refresh_tokens`, `audit_events`, `data_protection_keys` and the other Identity tables.
+- Optional `ADMIN_EMAILS` deploy variable, passed to the API in AWS.
+
 ### Changed
+- Every controller action now needs a signed-in user unless it has `[AllowAnonymous]`. Swagger UI shows a padlock on every operation that needs a token.
+- The request log now records the real client IP (from CloudFront in AWS) and whether the request was rate limited.
+- In AWS the API gets `App__BaseUrl` (for links in emails), `Email__Provider=Ses` and `Email__FromAddress=no-reply@<domain>` instead of `Email__FromDomain`.
 - The API can now build its database connection from separate `Database:Host`, `Database:Port`, `Database:Name`, `Database:Username` and `Database:Password` settings (as supplied by the RDS secret in AWS), and then requires TLS. A full `ConnectionStrings:Tumiia` still takes priority, as used locally.
 - The EF Core tools and the migrations bundle read the connection from environment variables, falling back to the local Docker database.

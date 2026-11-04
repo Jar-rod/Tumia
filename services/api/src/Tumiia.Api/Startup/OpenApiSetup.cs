@@ -37,11 +37,12 @@ public static class OpenApiSetup
         return configuration.GetValue("Swagger:Enabled", environment.IsDevelopment());
     }
 
-    /// <summary>Serves <c>/openapi/{version}.json</c> for every API version, and the Swagger UI at <c>/swagger</c>.</summary>
-    public static WebApplication UseTumiiaSwagger(this WebApplication app)
+    /// <summary>
+    /// Serves the Swagger UI page at <c>/swagger</c>. Call this before authentication, so the page itself does not
+    /// need a token (the "Authorize" button adds one to the calls it makes).
+    /// </summary>
+    public static WebApplication UseTumiiaSwaggerUi(this WebApplication app)
     {
-        app.MapOpenApi().WithDocumentPerVersion();
-
         var versions = app.DescribeApiVersions();
         app.UseSwaggerUI(options =>
         {
@@ -52,6 +53,13 @@ public static class OpenApiSetup
             }
         });
 
+        return app;
+    }
+
+    /// <summary>Serves <c>/openapi/{version}.json</c> for every API version, without needing a token.</summary>
+    public static WebApplication MapTumiiaOpenApi(this WebApplication app)
+    {
+        app.MapOpenApi().WithDocumentPerVersion().AllowAnonymous();
         return app;
     }
 }

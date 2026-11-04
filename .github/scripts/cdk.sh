@@ -5,7 +5,7 @@
 # Usage: cdk.sh <diff|deploy>   (run from the infra/ folder)
 # Required: ENV_NAME, AWS_ACCOUNT_ID, DOMAIN_NAME, HOSTED_ZONE_ID, HOSTED_ZONE_NAME, REPO_OIDC_SUBJECT,
 #           ALERT_EMAIL, CLOUDFRONT_PREFIX_LIST_ID
-# Optional: IMAGE_TAG, ENABLE_BEDROCK, BEDROCK_INFERENCE_PROFILE_ARN, BEDROCK_MODEL_ID
+# Optional: IMAGE_TAG, ADMIN_EMAILS, ENABLE_BEDROCK, BEDROCK_INFERENCE_PROFILE_ARN, BEDROCK_MODEL_ID
 set -euo pipefail
 
 command="${1:?Pass diff or deploy}"
@@ -25,6 +25,11 @@ context=(
 # Keep the image the service is already running; otherwise CDK would roll the API back to an older image.
 if [ -n "${IMAGE_TAG:-}" ]; then
   context+=(-c "imageTag=$IMAGE_TAG")
+fi
+
+# Comma-separated emails that get the Admin role.
+if [ -n "${ADMIN_EMAILS:-}" ]; then
+  context+=(-c "adminEmails=$ADMIN_EMAILS")
 fi
 
 if [ "${ENABLE_BEDROCK:-false}" = "true" ]; then

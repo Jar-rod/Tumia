@@ -47,3 +47,6 @@ cdk.out/
 # Local data
 *.db
 .localstack/
+
+# Emails written by the local (development) email sender
+.dev-emails/

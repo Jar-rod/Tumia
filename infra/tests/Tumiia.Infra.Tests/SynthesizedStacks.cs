@@ -22,6 +22,7 @@ public sealed class SynthesizedStacks
     public TumiiaStacks WithImageAndBedrock { get; } = Create(new Dictionary<string, object>
     {
         ["imageTag"] = "abc1234",
+        ["adminEmails"] = "owner@example.co.za",
         ["enableBedrock"] = "true",
         ["bedrockInferenceProfileArn"] = "arn:aws:bedrock:af-south-1:123456789012:inference-profile/global.example",
         ["bedrockModelId"] = "example.model-v1",

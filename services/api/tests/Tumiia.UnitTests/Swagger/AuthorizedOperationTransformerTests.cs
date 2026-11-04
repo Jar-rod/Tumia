@@ -26,12 +26,12 @@ public class AuthorizedOperationTransformerTests
     }
 
     [Fact]
-    public void RequiresAuthorisation_WhenEndpointHasNoAuthorize_ReturnsFalse()
+    public void RequiresAuthorisation_WhenEndpointSaysNothing_ReturnsTrueBecauseActionsAreClosedByDefault()
     {
         List<object> metadata = [];
 
         var requiresAuthorisation = AuthorizedOperationTransformer.RequiresAuthorisation(metadata);
 
-        requiresAuthorisation.ShouldBeFalse();
+        requiresAuthorisation.ShouldBeTrue();
     }
 }
