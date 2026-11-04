@@ -1,0 +1,198 @@
+# Runs on every pull request and every push to main. Never deploys (see deploy.yml for that).
+# Each job only runs when its part of the repo changed. A job skipped that way counts as passing.
+name: CI
+
+on:
+  pull_request:
+    # "labeled"/"unlabeled" re-run the checks when someone adds or removes the no-changelog label.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# A new push to the same pull request cancels the run that is still going.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  COVERAGE_MINIMUM: 70
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'services/api/**'
+              - '.github/workflows/ci.yml'
+              - '.github/scripts/**'
+            frontend:
+              - 'apps/web/**'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    name: backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore tools and packages
+        run: |
+          dotnet tool restore
+          dotnet restore
+      - name: Check formatting
+        run: dotnet format --no-restore --verify-no-changes
+      - name: Build
+        run: dotnet build --no-restore -c Release
+      # Integration tests start PostgreSQL with Testcontainers; Docker is already on ubuntu-latest.
+      - name: Test with coverage
+        run: dotnet test --no-build -c Release --collect:"XPlat Code Coverage" --settings coverlet.runsettings --results-directory TestResults
+      - name: Coverage report
+        if: ${{ !cancelled() && hashFiles('services/api/TestResults/**/coverage.cobertura.xml') != '' }}
+        run: |
+          dotnet reportgenerator -reports:"TestResults/*/coverage.cobertura.xml" -targetdir:TestResults/report -reporttypes:"Html;JsonSummary;MarkdownSummaryGithub"
+          cat TestResults/report/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage report
+        if: ${{ !cancelled() && hashFiles('services/api/TestResults/report/index.html') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage-report
+          path: services/api/TestResults/report
+      - name: Check coverage is at least ${{ env.COVERAGE_MINIMUM }}%
+        run: ../../.github/scripts/check-coverage.sh TestResults/report/Summary.json "$COVERAGE_MINIMUM"
+
+  frontend:
+    name: frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The React app is added by the frontend developer. Until then this job passes with a note.
+      - name: Check the frontend exists
+        id: app
+        run: |
+          if [ -f apps/web/package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "### frontend: skipped — no frontend yet (apps/web/package.json does not exist)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.app.outputs.exists == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install
+        if: steps.app.outputs.exists == 'true'
+        working-directory: apps/web
+        run: npm ci
+      - name: Lint
+        if: steps.app.outputs.exists == 'true'
+        working-directory: apps/web
+        run: npm run lint
+      - name: Type check
+        if: steps.app.outputs.exists == 'true'
+        working-directory: apps/web
+        run: npm run typecheck
+      # The threshold is set here too, so the gate holds whatever the app's own Vitest config says.
+      - name: Test with coverage (at least ${{ env.COVERAGE_MINIMUM }}% of lines)
+        if: steps.app.outputs.exists == 'true'
+        working-directory: apps/web
+        run: npm test -- --coverage --coverage.thresholds.lines="$COVERAGE_MINIMUM"
+      - name: Build
+        if: steps.app.outputs.exists == 'true'
+        working-directory: apps/web
+        run: npm run build
+
+  api-contract:
+    name: api-contract
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # Building the API rewrites openapi/v1.json from the code.
+      - name: Build the API
+        run: dotnet build src/Tumiia.Api -c Release
+      - name: Check the committed contract is up to date
+        run: |
+          if ! git diff --exit-code -- src/Tumiia.Api/openapi/v1.json; then
+            echo "::error::The API changed but services/api/src/Tumiia.Api/openapi/v1.json was not updated. Build the API locally and commit the file."
+            exit 1
+          fi
+
+  docker:
+    name: docker
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The Dockerfile arrives in Phase 2. Until then this job passes with a note.
+      - name: Check the Dockerfile exists
+        id: dockerfile
+        run: |
+          if [ -f services/api/Dockerfile ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "### docker: skipped — no Dockerfile yet (services/api/Dockerfile does not exist)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      # QEMU lets this x64 runner build the ARM64 image that Fargate runs.
+      - uses: docker/setup-qemu-action@v4
+        if: steps.dockerfile.outputs.exists == 'true'
+      - uses: docker/setup-buildx-action@v4
+        if: steps.dockerfile.outputs.exists == 'true'
+      - name: Build the backend image for linux/arm64 (not pushed)
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: services/api
+          file: services/api/Dockerfile
+          platforms: linux/arm64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  changelog:
+    name: changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check CHANGELOG.md was updated
+        run: .github/scripts/check-changelog.sh "$BASE_SHA" "$HEAD_SHA"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SKIP_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'no-changelog') }}

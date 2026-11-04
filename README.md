@@ -79,6 +79,13 @@ dotnet ef migrations add <DescriptiveName> --project src/Tumiia.Infrastructure -
 
 Never edit a migration that has been merged to `main`.
 
+## Continuous integration
+
+Every pull request runs `.github/workflows/ci.yml`: backend build, tests and 70% coverage; frontend checks
+(once `apps/web` exists); a check that `openapi/v1.json` is up to date; an ARM64 Docker build (once the
+Dockerfile exists); and a check that `CHANGELOG.md` was updated. For a pure refactor with no behaviour
+change, add the `no-changelog` label to the pull request. CI never deploys.
+
 ## Contributing
 
 Read `docs/CONTRIBUTING.md` before your first change. Every change needs tests and a `CHANGELOG.md` entry.
