@@ -1,22 +1,27 @@
 using System.Security.Claims;
 using Asp.Versioning;
 using Serilog;
+using Tumiia.Api.Security;
 
 namespace Tumiia.Api.Logging;
 
 /// <summary>
-/// Adds the extra fields to the one log line written for every request: route template, API version,
-/// user id and client IP. Never adds bodies, headers, cookies or tokens.
+/// Adds the extra fields to the one log line written for every request: route template, API version, user id,
+/// client IP and whether it was rate limited. Never adds bodies, headers, cookies or tokens.
 /// </summary>
 public static class RequestLogEnricher
 {
+    /// <summary>Set in <see cref="HttpContext.Items"/> by the rate limiter when it rejects a request.</summary>
+    public const string RateLimitedItemKey = "RateLimited";
+
     /// <summary>Called by Serilog's request logging once the request has finished.</summary>
     public static void Enrich(IDiagnosticContext diagnosticContext, HttpContext httpContext)
     {
         diagnosticContext.Set("RouteTemplate", GetRouteTemplate(httpContext));
         diagnosticContext.Set("ApiVersion", GetApiVersion(httpContext));
         diagnosticContext.Set("UserId", GetUserId(httpContext.User));
-        diagnosticContext.Set("ClientIp", httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+        diagnosticContext.Set("ClientIp", ClientIpResolver.Resolve(httpContext));
+        diagnosticContext.Set("RateLimited", httpContext.Items.ContainsKey(RateLimitedItemKey));
     }
 
     /// <summary>

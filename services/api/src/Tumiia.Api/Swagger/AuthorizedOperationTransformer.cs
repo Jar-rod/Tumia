@@ -5,8 +5,9 @@ using Microsoft.OpenApi;
 namespace Tumiia.Api.Swagger;
 
 /// <summary>
-/// Marks each endpoint that needs a signed-in user as using the bearer scheme, so Swagger UI sends the
-/// token for those calls and shows a padlock. Anonymous endpoints are left alone.
+/// Marks each endpoint that needs a signed-in user as using the bearer scheme, so Swagger UI sends the token for
+/// those calls and shows a padlock. Every controller action needs a signed-in user unless it has
+/// <c>[AllowAnonymous]</c> (see ControllersSetup), so only those are left without a padlock.
 /// </summary>
 public sealed class AuthorizedOperationTransformer : IOpenApiOperationTransformer
 {
@@ -24,11 +25,9 @@ public sealed class AuthorizedOperationTransformer : IOpenApiOperationTransforme
         return Task.CompletedTask;
     }
 
-    /// <summary>True when the endpoint has [Authorize] (directly or from its controller) and no [AllowAnonymous].</summary>
+    /// <summary>True unless the endpoint (or its controller) has [AllowAnonymous].</summary>
     public static bool RequiresAuthorisation(IList<object> endpointMetadata)
     {
-        var hasAuthorize = endpointMetadata.OfType<IAuthorizeData>().Any();
-        var allowsAnonymous = endpointMetadata.OfType<IAllowAnonymous>().Any();
-        return hasAuthorize && !allowsAnonymous;
+        return !endpointMetadata.OfType<IAllowAnonymous>().Any();
     }
 }
