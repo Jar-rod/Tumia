@@ -39,6 +39,27 @@ in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-C
 | Microsoft.AspNetCore.Mvc.Testing | 10.0.14 | In-memory API for integration tests | MIT |
 | Testcontainers.PostgreSql | 4.16.0 | Real PostgreSQL in Docker for integration tests | MIT |
 
+## In the container image (`services/api/Dockerfile`)
+
+| Component | Version | Used for | Licence |
+|---|---|---|---|
+| `mcr.microsoft.com/dotnet/aspnet:10.0-noble` | .NET 10 on Ubuntu 24.04 LTS | Runtime base image | MIT (.NET); Ubuntu packages under their own licences |
+| tesseract-ocr, libtesseract5, tesseract-ocr-eng | 5.3.4 (Ubuntu package) | OCR, run as a separate process | Apache-2.0 |
+| Leptonica (libleptonica6, Tesseract dependency) | Ubuntu package | Image handling for Tesseract | BSD-2-Clause |
+| sentence-transformers/all-MiniLM-L6-v2 | revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41` | Sentence embeddings (used from Phase 5) | Apache-2.0 |
+
+The model files are checked against these SHA-256 hashes when the image is built:
+`onnx/model.onnx` `6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452` (matches the hash Hugging Face
+publishes for that revision) and `vocab.txt` `07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3`.
+
+## Infrastructure (`infra/`, not shipped with the API)
+
+| Package or tool | Version | Used for | Licence |
+|---|---|---|---|
+| Amazon.CDK.Lib (+ Amazon.JSII.Runtime and CDK asset packages) | 2.275.0 | AWS CDK in C# | Apache-2.0 |
+| Constructs | 10.8.1 | CDK construct base | Apache-2.0 |
+| aws-cdk (npm CLI, run with npx) | 2.1147.0 | `cdk synth`, `diff`, `deploy`, `bootstrap` | Apache-2.0 |
+
 ## Local services (docker-compose, development only)
 
 | Image | Used for | Licence |

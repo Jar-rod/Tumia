@@ -1,0 +1,8 @@
+# Keep the Docker build context small and free of local build output and secrets.
+**/bin/
+**/obj/
+TestResults/
+tests/
+**/*.user
+**/.vs/
+.env*

@@ -1,0 +1,17 @@
+{
+  "app": "dotnet run --project src/Tumiia.Infra/Tumiia.Infra.csproj",
+  "watch": {
+    "include": [
+      "src/**"
+    ],
+    "exclude": [
+      "**/bin",
+      "**/obj",
+      "tests"
+    ]
+  },
+  "context": {
+    "env": "prod",
+    "@aws-cdk/core:defaultCrossStackReferences": "strong"
+  }
+}
