@@ -1,0 +1,39 @@
+# Local development services: PostgreSQL and LocalStack (fake S3 + SQS).
+# Start with:  docker compose up -d
+# The credentials below are for this local setup only. Real secrets live in AWS SSM Parameter Store.
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: tumiia
+      POSTGRES_USER: tumiia
+      POSTGRES_PASSWORD: tumiia
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tumiia -d tumiia"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:4.9
+    environment:
+      SERVICES: s3,sqs
+      AWS_DEFAULT_REGION: af-south-1
+    ports:
+      - "4566:4566"
+    volumes:
+      # Scripts in ready.d run once LocalStack is up. This one creates the bucket and queues.
+      - ./docker/localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name local-document-analysis >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres-data:

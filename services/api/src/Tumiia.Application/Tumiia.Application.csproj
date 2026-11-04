@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Use cases (register, upload, analyse, confirm, ...). References Domain only. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Tumiia.Domain\Tumiia.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Coverage settings, used by the test command in README.md.
+     Measures our own projects only, and leaves out code that is generated or has no logic to test. -->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Include>[Tumiia.Api]*,[Tumiia.Application]*,[Tumiia.Domain]*,[Tumiia.Infrastructure]*</Include>
+          <ExcludeByFile>**/Program.cs,**/Migrations/**,**/Dtos/**,**/*.Dto.cs,**/obj/**,**/*.generated.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+          <SkipAutoProps>true</SkipAutoProps>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>
