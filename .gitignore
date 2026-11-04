@@ -1,2 +1,49 @@
+# Local Claude Code settings and prompts. Never commit.
 .claude/
+
+# OS and editors
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Environment files (may hold secrets)
+.env
+.env.*
+!.env.example
+
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.nupkg
+TestResults/
+coverage/
+coverage-report/
+*.trx
+
+# Node / Vite (apps/web)
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vite/
+.eslintcache
+
+# AWS CDK
+cdk.out/
+
+# Local data
+*.db
+.localstack/

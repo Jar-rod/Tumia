@@ -1,0 +1,97 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "TUMIIA API",
+    "description": "Intelligent filing for construction project documents.",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Checks that the API is running and can reach the database.",
+        "description": "Anonymous, so the load balancer can call it. Returns 200 when every check passes and 503 when any fails.\nOnly the name and result of each check are returned, never error details.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthCheckEntry": {
+        "required": [
+          "name",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "What was checked, for example \"database\"."
+          },
+          "status": {
+            "type": "string",
+            "description": "\"Healthy\", \"Degraded\" or \"Unhealthy\"."
+          }
+        },
+        "description": "The result of one health check, such as the database connection."
+      },
+      "HealthResponse": {
+        "required": [
+          "status",
+          "checks"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "\"Healthy\" when every check passed, otherwise \"Unhealthy\" or \"Degraded\"."
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HealthCheckEntry"
+            },
+            "description": "The result of each individual check."
+          }
+        },
+        "description": "The result of the health check."
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "Paste the access token returned by the login endpoint.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health"
+    }
+  ]
+}
