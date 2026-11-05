@@ -1,5 +1,6 @@
 using Tumiia.Application;
 using Tumiia.Application.Auth;
+using Tumiia.Domain.Documents;
 
 namespace Tumiia.Api.Startup;
 
@@ -19,6 +20,7 @@ public static class ApplicationSetup
         services.AddSingleton(provider => ReadAuthSettings(
             provider.GetRequiredService<IConfiguration>(),
             provider.GetRequiredService<IHostEnvironment>()));
+        services.AddSingleton(provider => ReadUploadRules(provider.GetRequiredService<IConfiguration>()));
 
         return services;
     }
@@ -42,6 +44,26 @@ public static class ApplicationSetup
             AppBaseUrl = baseUrl,
             AdminEmails = ReadAdminEmails(configuration),
             RefreshTokenLifetime = TimeSpan.FromDays(configuration.GetValue("Auth:RefreshTokenDays", 14)),
+        };
+    }
+
+    /// <summary>
+    /// The <c>Uploads</c> section: allowed extensions (with or without the dot, any case), the largest file in MB and
+    /// the most files per request. Defaults: the v1.1 file types, 50 MB and 50 files.
+    /// </summary>
+    public static UploadRules ReadUploadRules(IConfiguration configuration)
+    {
+        var section = configuration.GetSection("Uploads");
+        var extensions = section.GetSection("AllowedExtensions").Get<string[]>() ?? [];
+
+        return new UploadRules
+        {
+            AllowedExtensions = extensions
+                .Where(extension => !string.IsNullOrWhiteSpace(extension))
+                .Select(extension => "." + extension.Trim().TrimStart('.').ToLowerInvariant())
+                .ToHashSet(),
+            MaxFileSizeMb = section.GetValue("MaxFileSizeMb", 50),
+            MaxFilesPerRequest = section.GetValue("MaxFilesPerRequest", 50),
         };
     }
 

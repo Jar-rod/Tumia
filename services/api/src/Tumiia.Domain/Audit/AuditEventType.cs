@@ -11,4 +11,6 @@ public enum AuditEventType
     PasswordReset,
     RefreshTokenReuseDetected,
     LoggedOut,
+    DocumentUploadRequested,
+    DocumentUploaded,
 }

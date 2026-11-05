@@ -230,6 +230,10 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -256,6 +260,9 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_audit_events");
+
+                    b.HasIndex("DocumentId")
+                        .HasDatabaseName("ix_audit_events_document_id");
 
                     b.HasIndex("OccurredAt")
                         .HasDatabaseName("ix_audit_events_occurred_at");
@@ -317,6 +324,189 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_refresh_tokens_user_id");
 
                     b.ToTable("refresh_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("Tumiia.Domain.Documents.Document", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CaptureSource")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("capture_source");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<Guid?>("ConfirmedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("confirmed_by");
+
+                    b.Property<string>("ConfirmedFields")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("confirmed_fields");
+
+                    b.Property<string>("ConsequenceLevel")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("consequence_level");
+
+                    b.Property<string>("ContentTypeClaimed")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("content_type_claimed");
+
+                    b.Property<string>("ContentTypeDetected")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("content_type_detected");
+
+                    b.Property<bool>("CorrectionFlag")
+                        .HasColumnType("boolean")
+                        .HasColumnName("correction_flag");
+
+                    b.Property<string>("DocumentTypeConfirmed")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("document_type_confirmed");
+
+                    b.Property<bool?>("ExtensionMatches")
+                        .HasColumnType("boolean")
+                        .HasColumnName("extension_matches");
+
+                    b.Property<bool>("NeedsReview")
+                        .HasColumnType("boolean")
+                        .HasColumnName("needs_review");
+
+                    b.Property<string>("OriginalFilename")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("original_filename");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character(64)")
+                        .HasColumnName("sha256")
+                        .IsFixedLength();
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<string>("SubjectConfirmed")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("subject_confirmed");
+
+                    b.Property<DateTimeOffset?>("UploadTimestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("upload_timestamp");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_documents");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique()
+                        .HasDatabaseName("ix_documents_storage_key");
+
+                    b.HasIndex("UploadedBy")
+                        .HasDatabaseName("ix_documents_uploaded_by");
+
+                    b.HasIndex("ProjectId", "Sha256")
+                        .IsUnique()
+                        .HasDatabaseName("ix_documents_project_id_sha256");
+
+                    b.HasIndex("ProjectId", "Status")
+                        .HasDatabaseName("ix_documents_project_id_status");
+
+                    b.ToTable("documents", (string)null);
+                });
+
+            modelBuilder.Entity("Tumiia.Domain.Projects.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_projects");
+
+                    b.HasIndex("OwnerUserId")
+                        .HasDatabaseName("ix_projects_owner_user_id");
+
+                    b.ToTable("projects", (string)null);
+                });
+
+            modelBuilder.Entity("Tumiia.Domain.Projects.ProjectMember", b =>
+                {
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("added_at");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("role");
+
+                    b.HasKey("ProjectId", "UserId")
+                        .HasName("pk_project_members");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_project_members_user_id");
+
+                    b.ToTable("project_members", (string)null);
                 });
 
             modelBuilder.Entity("Tumiia.Infrastructure.Identity.ApplicationUser", b =>
@@ -471,6 +661,50 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_refresh_tokens_asp_net_users_user_id");
+                });
+
+            modelBuilder.Entity("Tumiia.Domain.Documents.Document", b =>
+                {
+                    b.HasOne("Tumiia.Domain.Projects.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_documents_projects_project_id");
+
+                    b.HasOne("Tumiia.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_documents_asp_net_users_uploaded_by");
+                });
+
+            modelBuilder.Entity("Tumiia.Domain.Projects.Project", b =>
+                {
+                    b.HasOne("Tumiia.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_projects_asp_net_users_owner_user_id");
+                });
+
+            modelBuilder.Entity("Tumiia.Domain.Projects.ProjectMember", b =>
+                {
+                    b.HasOne("Tumiia.Domain.Projects.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_projects_project_id");
+
+                    b.HasOne("Tumiia.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_project_members_asp_net_users_user_id");
                 });
 #pragma warning restore 612, 618
         }

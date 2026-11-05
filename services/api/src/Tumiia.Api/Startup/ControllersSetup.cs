@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Formatters;
 
@@ -10,7 +11,8 @@ public static class ControllersSetup
     /// Adds controllers. Every action needs a signed-in user unless it has <c>[AllowAnonymous]</c>, so a new endpoint
     /// is closed until someone decides otherwise. (This applies to controller actions only, so an unknown address
     /// still answers 404.) The plain-text and <c>text/json</c> output formats are removed, so the API and its
-    /// OpenAPI contract only offer <c>application/json</c>; errors keep <c>application/problem+json</c>.
+    /// OpenAPI contract only offer <c>application/json</c>; errors keep <c>application/problem+json</c>. Enums are
+    /// written as names ("New", "drag_drop"), not numbers.
     /// </summary>
     public static IServiceCollection AddTumiiaControllers(this IServiceCollection services)
     {
@@ -22,7 +24,10 @@ public static class ControllersSetup
             {
                 jsonFormatter.SupportedMediaTypes.Remove("text/json");
             }
-        });
+        }).AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+        // The OpenAPI generator reads these settings, so the contract shows enums as names too.
+        services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
         return services;
     }

@@ -1,5 +1,3 @@
-using Amazon;
-using Amazon.SimpleEmailV2;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,12 +5,18 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Tumiia.Application.Auth;
+using Tumiia.Application.Documents;
+using Tumiia.Application.Projects;
 using Tumiia.Domain.Email;
+using Tumiia.Domain.Storage;
+using Tumiia.Infrastructure.Aws;
 using Tumiia.Infrastructure.Audit;
 using Tumiia.Infrastructure.Email;
 using Tumiia.Infrastructure.Identity;
 using Tumiia.Infrastructure.Persistence;
+using Tumiia.Infrastructure.Storage;
 
 namespace Tumiia.Infrastructure;
 
@@ -23,7 +27,8 @@ public static class DependencyInjection
     public const string ConnectionStringName = "Tumiia";
 
     /// <summary>
-    /// Adds the database, ASP.NET Core Identity, access tokens, the stores behind the auth use cases, and email.
+    /// Adds the database, ASP.NET Core Identity, access tokens, the stores behind the use cases, AWS (S3, SQS, SES)
+    /// and email.
     /// The connection string is read when the database is first used, so the app can still start (for example
     /// to generate the OpenAPI file) without one. See <see cref="DatabaseConnectionString"/> for where it comes from.
     /// </summary>
@@ -33,11 +38,14 @@ public static class DependencyInjection
         AddDatabase(services, configuration);
         AddIdentity(services);
         AddAccessTokens(services, configuration, environment);
+        AddAws(services, configuration);
         AddEmail(services, configuration);
 
         services.AddScoped<IUserAccounts, IdentityUserAccounts>();
         services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
         services.AddScoped<IAuditLog, EfAuditLog>();
+        services.AddScoped<IProjectStore, EfProjectStore>();
+        services.AddScoped<IDocumentStore, EfDocumentStore>();
         return services;
     }
 
@@ -126,6 +134,25 @@ public static class DependencyInjection
         services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
     }
 
+    /// <summary>
+    /// S3 for original files and SQS for analysis requests. The clients are created on first use, so the app can
+    /// start without AWS (for example to generate the OpenAPI file).
+    /// </summary>
+    private static void AddAws(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<AwsSettings>(configuration.GetSection(AwsSettings.SectionName));
+        services.Configure<StorageSettings>(settings =>
+        {
+            settings.DocumentsBucket = configuration["Storage:DocumentsBucket"] ?? string.Empty;
+            settings.DocumentAnalysisQueueUrl = configuration["Queues:DocumentAnalysisUrl"] ?? string.Empty;
+        });
+
+        services.AddSingleton(provider => AwsClients.CreateS3(provider.GetRequiredService<IOptions<AwsSettings>>().Value));
+        services.AddSingleton(provider => AwsClients.CreateSqs(provider.GetRequiredService<IOptions<AwsSettings>>().Value));
+        services.AddSingleton<IFileStore, S3FileStore>();
+        services.AddSingleton<IDocumentQueue, SqsDocumentQueue>();
+    }
+
     /// <summary>SES when <c>Email:Provider</c> is "Ses" (as in AWS); otherwise the local file-writing sender.</summary>
     private static void AddEmail(IServiceCollection services, IConfiguration configuration)
     {
@@ -139,8 +166,7 @@ public static class DependencyInjection
             return;
         }
 
-        var region = configuration["Aws:Region"] ?? "af-south-1";
-        services.AddSingleton<IAmazonSimpleEmailServiceV2>(_ => new AmazonSimpleEmailServiceV2Client(RegionEndpoint.GetBySystemName(region)));
+        services.AddSingleton(provider => AwsClients.CreateSes(provider.GetRequiredService<IOptions<AwsSettings>>().Value));
         services.AddSingleton<IEmailSender, SesEmailSender>();
     }
 }

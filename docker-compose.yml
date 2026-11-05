@@ -24,6 +24,8 @@ services:
     environment:
       SERVICES: s3,sqs
       AWS_DEFAULT_REGION: af-south-1
+      # Check pre-signed URL signatures like real S3 does, so an upload of the wrong size or type is refused locally too.
+      S3_SKIP_SIGNATURE_VALIDATION: "0"
     ports:
       - "4566:4566"
     volumes:

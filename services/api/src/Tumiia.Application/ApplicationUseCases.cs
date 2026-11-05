@@ -1,4 +1,6 @@
 using Tumiia.Application.Auth;
+using Tumiia.Application.Documents;
+using Tumiia.Application.Projects;
 
 namespace Tumiia.Application;
 
@@ -16,5 +18,14 @@ public static class ApplicationUseCases
         typeof(RequestPasswordReset),
         typeof(ResetPassword),
         typeof(GetCurrentUser),
+        typeof(ProjectAccessGuard),
+        typeof(CreateProject),
+        typeof(ListMyProjects),
+        typeof(GetProject),
+        typeof(RequestUploads),
+        typeof(ConfirmUpload),
+        typeof(ListDocuments),
+        typeof(GetDocument),
+        typeof(GetDocumentSourceUrl),
     ];
 }

@@ -4,13 +4,16 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Tumiia.Domain.Audit;
 using Tumiia.Domain.Auth;
+using Tumiia.Domain.Documents;
+using Tumiia.Domain.Projects;
 using Tumiia.Infrastructure.Identity;
 using Tumiia.Infrastructure.Persistence.Configurations;
 
 namespace Tumiia.Infrastructure.Persistence;
 
 /// <summary>
-/// The EF Core database context for TUMIIA: Identity's user and role tables, refresh tokens, the audit log and the
+/// The EF Core database context for TUMIIA: projects and their documents, Identity's user and role tables,
+/// refresh tokens, the audit log and the
 /// ASP.NET Data Protection keys (so password reset tokens survive restarts and redeploys).
 /// Table and column names are snake_case (set in <see cref="TumiiaDbContextOptions"/>).
 /// </summary>
@@ -20,6 +23,12 @@ public sealed class TumiiaDbContext(DbContextOptions<TumiiaDbContext> options)
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
+    public DbSet<Project> Projects => Set<Project>();
+
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
+
+    public DbSet<Document> Documents => Set<Document>();
 
     /// <summary>Data Protection keys, used to protect password reset tokens.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

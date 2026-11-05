@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +21,9 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
 
     /// <summary>Creates an account and signs the new user in.</summary>
     /// <remarks>Returns an access token in the body and sets the refresh token cookie. No email confirmation yet.</remarks>
+    /// <param name="request">The request body.</param>
+    /// <param name="registerUser">The register user use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
     [HttpPost("register")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
@@ -50,6 +52,9 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
     /// Returns an access token in the body and sets the refresh token cookie. A wrong email, a wrong password and
     /// a locked account all get the same 401. Five wrong passwords lock the account for 15 minutes.
     /// </remarks>
+    /// <param name="request">The request body.</param>
+    /// <param name="loginUser">The login user use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
     [HttpPost("login")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
@@ -73,6 +78,8 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
     /// Call this when the app loads, and after a 401, to stay signed in. If an old refresh token is used again, the
     /// whole sign-in is ended for safety.
     /// </remarks>
+    /// <param name="refreshSession">The refresh session use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
     [HttpPost("refresh")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
@@ -92,6 +99,8 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
     }
 
     /// <summary>Signs out: revokes the refresh token and clears its cookie.</summary>
+    /// <param name="logoutUser">The logout user use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
     [HttpPost("logout")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -106,6 +115,9 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
 
     /// <summary>Emails a password reset link.</summary>
     /// <remarks>Always answers 202, whether or not the email has an account, so it cannot be used to find accounts.</remarks>
+    /// <param name="request">The request body.</param>
+    /// <param name="requestPasswordReset">The request password reset use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
@@ -120,6 +132,9 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
 
     /// <summary>Sets a new password using the email and token from a reset link.</summary>
     /// <remarks>On success the user is signed out everywhere and must sign in with the new password.</remarks>
+    /// <param name="request">The request body.</param>
+    /// <param name="resetPassword">The reset password use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
     [HttpPost("reset-password")]
     [AllowAnonymous]
     [EnableRateLimiting(RateLimitPolicies.Auth)]
@@ -143,6 +158,8 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
     }
 
     /// <summary>Who is signed in.</summary>
+    /// <param name="getCurrentUser">The get current user use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
     [HttpGet("me")]
     [Authorize]
     [ProducesResponseType<CurrentUserResponse>(StatusCodes.Status200OK)]
@@ -161,7 +178,7 @@ public sealed class AuthController(AuthSettings settings) : ControllerBase
 
     private string ClientIp => ClientIpResolver.Resolve(HttpContext);
 
-    private Guid CurrentUserId => Guid.Parse(User.FindFirstValue("sub")!);
+    private Guid CurrentUserId => User.GetUserId();
 
     /// <summary>Sets the refresh cookie and returns the access token.</summary>
     private OkObjectResult SignedIn(AuthSession session)

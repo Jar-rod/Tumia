@@ -405,6 +405,240 @@
         ]
       }
     },
+    "/api/v1/documents/{documentId}/uploaded": {
+      "post": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Step 2 of uploading: tell the API the file has been PUT to its upload address.",
+        "description": "The API checks the file is in storage and is the announced size, marks the document New and queues it for\nanalysis. 409 when the file has not arrived or is the wrong size. Safe to call again.",
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "description": "The document id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/documents/{documentId}": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Gets one document with everything known about it.",
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "description": "The document id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/documents/{documentId}/source-url": {
+      "get": {
+        "tags": [
+          "Documents"
+        ],
+        "summary": "Gets a 5-minute address to view or download the original file.",
+        "description": "PDFs and common images open in the browser; other files download under their original name. 409 when the file has not been uploaded yet.",
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "description": "The document id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceUrlResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
@@ -435,6 +669,395 @@
           }
         }
       }
+    },
+    "/api/v1/projects": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Creates a project vault. The caller becomes its owner.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Lists the caller's projects, newest first.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{projectId}": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Gets one project.",
+        "description": "404 when it does not exist or the caller is not a member (the two are not told apart).",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "description": "The project id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{projectId}/documents/upload-requests": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Step 1 of uploading: get an upload address for each file.",
+        "description": "Send up to 50 files' names, types, sizes and SHA-256 hashes. Each new file gets a document id and a 5-minute\npre-signed address to PUT the file to, with exactly that Content-Type and size. A file already in the project\ngets `existingDocumentId` instead. Files with a type TUMIIA does not take, or over 50 MB, are refused\nwith 400, and then nothing is created.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "description": "The project id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequestsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequestsRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequestsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadRequestsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/projects/{projectId}/documents": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Lists a project's documents, newest first.",
+        "description": "Filter by `status` (for example NeedsReview) and by `category` (the confirmed document type). Unfinished uploads are left out unless you ask for status PendingUpload.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "description": "The project id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only documents with this status.",
+            "schema": {
+              "$ref": "#/components/schemas/DocumentStatus"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Only documents with this confirmed document type.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -462,6 +1085,35 @@
           }
         },
         "description": "A signed-in session. The access token goes in the `Authorization: Bearer` header and should be kept in\nmemory only. The refresh token is not in the body: it is set as an HttpOnly cookie."
+      },
+      "CaptureSource": {
+        "enum": [
+          "drag_drop",
+          "file_picker",
+          "mobile_upload"
+        ]
+      },
+      "ConsequenceLevel": {
+        "enum": [
+          "Low",
+          "Medium",
+          "High",
+          null
+        ]
+      },
+      "CreateProjectRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "type": "string",
+            "description": "The project's name, for example \"Mokoena Residence\"."
+          }
+        },
+        "description": "A new project vault."
       },
       "CurrentUserResponse": {
         "required": [
@@ -494,6 +1146,185 @@
           }
         },
         "description": "The signed-in user."
+      },
+      "DocumentDetailResponse": {
+        "required": [
+          "document",
+          "sha256",
+          "contentTypeDetected",
+          "extensionMatches",
+          "uploadedBy",
+          "correctionFlag",
+          "confirmedBy",
+          "confirmedAt",
+          "confirmedFields"
+        ],
+        "type": "object",
+        "properties": {
+          "document": {
+            "description": "The fields shown in lists.",
+            "$ref": "#/components/schemas/DocumentResponse"
+          },
+          "sha256": {
+            "type": "string",
+            "description": "The file's SHA-256."
+          },
+          "contentTypeDetected": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The real file type, once analysed."
+          },
+          "extensionMatches": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether the real type matches the extension, once analysed."
+          },
+          "uploadedBy": {
+            "type": "string",
+            "description": "Who uploaded it.",
+            "format": "uuid"
+          },
+          "correctionFlag": {
+            "type": "boolean",
+            "description": "True once a person changed something the AI proposed."
+          },
+          "confirmedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Who confirmed it, if anyone.",
+            "format": "uuid"
+          },
+          "confirmedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When it was confirmed (UTC).",
+            "format": "date-time"
+          },
+          "confirmedFields": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ],
+            "description": "The confirmed fields, as JSON, once confirmed."
+          }
+        },
+        "description": "Everything about one document. The analysis (proposed category, fields and their confidence) is added in the\nnext phase."
+      },
+      "DocumentResponse": {
+        "required": [
+          "id",
+          "projectId",
+          "originalFilename",
+          "contentTypeClaimed",
+          "sizeBytes",
+          "captureSource",
+          "status",
+          "uploadTimestamp",
+          "consequenceLevel",
+          "needsReview",
+          "documentTypeConfirmed",
+          "subjectConfirmed"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The document id.",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "The project it belongs to.",
+            "format": "uuid"
+          },
+          "originalFilename": {
+            "type": "string",
+            "description": "The file's name when uploaded."
+          },
+          "contentTypeClaimed": {
+            "type": "string",
+            "description": "The file type the browser reported."
+          },
+          "sizeBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The file's size.",
+            "format": "int64"
+          },
+          "captureSource": {
+            "description": "How the file was picked.",
+            "$ref": "#/components/schemas/CaptureSource"
+          },
+          "status": {
+            "description": "Where the document is: New, Processing, AutoFiled, AwaitingConfirmation, NeedsReview, Confirmed or Failed.",
+            "$ref": "#/components/schemas/DocumentStatus"
+          },
+          "uploadTimestamp": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the upload finished (UTC).",
+            "format": "date-time"
+          },
+          "consequenceLevel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConsequenceLevel"
+              }
+            ],
+            "description": "How much a wrong filing would matter, once analysed."
+          },
+          "needsReview": {
+            "type": "boolean",
+            "description": "True when a person must look at it."
+          },
+          "documentTypeConfirmed": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The category a person confirmed, if any."
+          },
+          "subjectConfirmed": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The subject a person confirmed, if any."
+          }
+        },
+        "description": "A document, as shown in lists."
+      },
+      "DocumentStatus": {
+        "enum": [
+          "PendingUpload",
+          "New",
+          "Processing",
+          "AutoFiled",
+          "AwaitingConfirmation",
+          "NeedsReview",
+          "Confirmed",
+          "Failed"
+        ]
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -547,6 +1378,7 @@
         },
         "description": "The result of the health check."
       },
+      "JsonElement": { },
       "LoginRequest": {
         "required": [
           "email",
@@ -603,6 +1435,41 @@
           }
         }
       },
+      "ProjectResponse": {
+        "required": [
+          "id",
+          "name",
+          "createdAt",
+          "role"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The project id.",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "The project's name."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "When it was created (UTC).",
+            "format": "date-time"
+          },
+          "role": {
+            "description": "The caller's role in the project.",
+            "$ref": "#/components/schemas/ProjectRole"
+          }
+        },
+        "description": "A project vault."
+      },
+      "ProjectRole": {
+        "enum": [
+          "Owner"
+        ]
+      },
       "RegisterRequest": {
         "required": [
           "email",
@@ -650,6 +1517,139 @@
           }
         },
         "description": "A new password, with the email and token from the reset link."
+      },
+      "SourceUrlResponse": {
+        "required": [
+          "url",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Open or download the file here. PDFs and images open in the browser; other files download."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "When the address stops working (UTC). Ask again after that.",
+            "format": "date-time"
+          }
+        },
+        "description": "A short-lived address for the original file."
+      },
+      "UploadFileRequest": {
+        "required": [
+          "fileName",
+          "contentType",
+          "sizeBytes",
+          "sha256"
+        ],
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "maxLength": 255,
+            "type": "string",
+            "description": "The file's name, with its extension."
+          },
+          "contentType": {
+            "maxLength": 255,
+            "type": "string",
+            "description": "The file's type as the browser reports it (for example `application/pdf`). Must be sent again, exactly, on the upload."
+          },
+          "sizeBytes": {
+            "maximum": 9223372036854776000,
+            "minimum": 1,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The file's size in bytes. The upload must be exactly this size.",
+            "format": "int64"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-fA-F]{64}$",
+            "type": "string",
+            "description": "The SHA-256 of the file's bytes, as 64 hexadecimal characters (Web Crypto `crypto.subtle.digest`)."
+          }
+        },
+        "description": "One file the browser wants to upload."
+      },
+      "UploadRequestsRequest": {
+        "required": [
+          "captureSource",
+          "files"
+        ],
+        "type": "object",
+        "properties": {
+          "captureSource": {
+            "description": "How the files were picked: `drag_drop`, `file_picker` or `mobile_upload`.",
+            "$ref": "#/components/schemas/CaptureSource"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadFileRequest"
+            },
+            "description": "The files. At most 50 per request (configurable)."
+          }
+        },
+        "description": "The files the browser wants to upload in one go, and how they were picked."
+      },
+      "UploadRequestsResponse": {
+        "required": [
+          "files"
+        ],
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UploadTargetResponse"
+            },
+            "description": "The answers."
+          }
+        },
+        "description": "One answer per requested file, in the order sent."
+      },
+      "UploadTargetResponse": {
+        "required": [
+          "fileName",
+          "documentId",
+          "uploadUrl",
+          "existingDocumentId"
+        ],
+        "type": "object",
+        "properties": {
+          "fileName": {
+            "type": "string",
+            "description": "The file name as sent, to match answers to files."
+          },
+          "documentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The new document's id, when the file should be uploaded.",
+            "format": "uuid"
+          },
+          "uploadUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where to PUT the file, with the same Content-Type and exact size. Works for 5 minutes."
+          },
+          "existingDocumentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The document that already has this file, when it is a duplicate.",
+            "format": "uuid"
+          }
+        },
+        "description": "What to do with one file: PUT it to `UploadUrl` (then call `/documents/{documentId}/uploaded`),\nor nothing, because `ExistingDocumentId` already holds the same file."
       },
       "ValidationProblemDetails": {
         "type": "object",
@@ -713,7 +1713,13 @@
       "name": "Auth"
     },
     {
+      "name": "Documents"
+    },
+    {
       "name": "Health"
+    },
+    {
+      "name": "Projects"
     }
   ]
 }

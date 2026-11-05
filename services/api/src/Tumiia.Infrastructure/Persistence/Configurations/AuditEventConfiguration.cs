@@ -18,6 +18,7 @@ public sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEven
         builder.Property(auditEvent => auditEvent.EventType).HasConversion<string>().HasMaxLength(50);
         builder.Property(auditEvent => auditEvent.IpAddress).HasMaxLength(45);
         builder.HasIndex(auditEvent => auditEvent.UserId);
+        builder.HasIndex(auditEvent => auditEvent.DocumentId);
         builder.HasIndex(auditEvent => auditEvent.OccurredAt);
     }
 }
