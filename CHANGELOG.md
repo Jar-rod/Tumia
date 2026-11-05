@@ -39,7 +39,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Migration `AddUsersRefreshTokensAndAuditEvents`: `users`, `roles` (User and Admin seeded), `user_roles`, `refresh_tokens`, `audit_events`, `data_protection_keys` and the other Identity tables.
 - Optional `ADMIN_EMAILS` deploy variable, passed to the API in AWS.
 
+- Project vaults: `POST /api/v1/projects`, `GET /api/v1/projects`, `GET /api/v1/projects/{projectId}`. The creator is the project's Owner (`project_members`, so more roles can be added later).
+- Uploading straight from the browser to S3, never through the API: `POST /api/v1/projects/{projectId}/documents/upload-requests` checks up to 50 files (type, size up to 50 MB, SHA-256) and returns a 5-minute pre-signed PUT address per new file, with the exact size and content type signed in so S3 refuses anything else; a file already in the project returns `existingDocumentId` instead. `POST /api/v1/documents/{documentId}/uploaded` checks the file is in S3 at the right size, marks the document `New` and sends `{ documentId }` to the analysis queue. Allowed types and limits are in the `Uploads` configuration section.
+- `GET /api/v1/projects/{projectId}/documents` (filter by `status` and `category`), `GET /api/v1/documents/{documentId}`, and `GET /api/v1/documents/{documentId}/source-url` (5-minute address; PDFs and common images open in the browser, other files download under their original name).
+- `documents` table with the v1.1 record (storage key `originals/{projectId}/{documentId}`, claimed and detected content type, size, SHA-256, capture source, status, consequence level, confirmed fields as `jsonb`, …), unique per project and SHA-256. New status `PendingUpload` for a file between the two upload calls.
+- One `ProjectAccessGuard` for every project and document endpoint: a project or document the caller does not belong to answers 404, exactly like one that does not exist.
+- Audit events `DocumentUploadRequested` and `DocumentUploaded`, with a new `document_id` column on `audit_events`.
+- Migration `AddProjectsAndDocuments`.
+- Integration tests run the upload flow against a LocalStack container (S3 and SQS).
+
 ### Changed
+- API enums are now written as names in JSON and in the OpenAPI contract (`"New"`, `"drag_drop"`), not numbers.
+- Local LocalStack checks pre-signed URL signatures like real S3 (`S3_SKIP_SIGNATURE_VALIDATION=0`) and the local documents bucket allows browser uploads from `http://localhost:5173`.
 - Every controller action now needs a signed-in user unless it has `[AllowAnonymous]`. Swagger UI shows a padlock on every operation that needs a token.
 - The request log now records the real client IP (from CloudFront in AWS) and whether the request was rate limited.
 - In AWS the API gets `App__BaseUrl` (for links in emails), `Email__Provider=Ses` and `Email__FromAddress=no-reply@<domain>` instead of `Email__FromDomain`.

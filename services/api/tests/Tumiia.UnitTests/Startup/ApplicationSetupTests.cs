@@ -56,4 +56,21 @@ public class ApplicationSetupTests
 
         read.ShouldThrow<InvalidOperationException>().Message.ShouldContain("App:BaseUrl");
     }
+
+    [Fact]
+    public void ReadUploadRules_WhenExtensionsAreWrittenLoosely_NormalisesThem()
+    {
+        var configuration = Configuration(new()
+        {
+            ["Uploads:AllowedExtensions:0"] = "PDF",
+            ["Uploads:AllowedExtensions:1"] = " .dwg ",
+            ["Uploads:MaxFileSizeMb"] = "10",
+        });
+
+        var rules = ApplicationSetup.ReadUploadRules(configuration);
+
+        rules.AllowedExtensions.ShouldBe([".pdf", ".dwg"], ignoreOrder: true);
+        rules.MaxFileSizeMb.ShouldBe(10);
+        rules.MaxFilesPerRequest.ShouldBe(50);
+    }
 }

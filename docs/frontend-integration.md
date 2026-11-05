@@ -56,6 +56,27 @@ a lower-case letter, a digit and a symbol.
 **The reset link** in the email opens `/reset-password?email=...&token=...` in the app. The page asks for the
 new password and calls `reset-password` with the values from the address. The link works for one hour.
 
+## Projects and uploads (summary; the full flow is written up in a later phase)
+
+- `POST /api/v1/projects` `{ name }` creates a vault; `GET /api/v1/projects` lists the user's vaults.
+- Uploading is three steps. File bytes never go through the API:
+  1. Hash each file with Web Crypto (`crypto.subtle.digest('SHA-256', bytes)`, as lower-case hex) and call
+     `POST /api/v1/projects/{projectId}/documents/upload-requests` with
+     `{ captureSource: "drag_drop" | "file_picker" | "mobile_upload", files: [{ fileName, contentType, sizeBytes, sha256 }] }`
+     (at most 50 files, each at most 50 MB; allowed types: pdf, jpg, jpeg, png, heic, tif, tiff, webp, doc, docx,
+     xls, xlsx, csv, txt, dxf, dwg).
+  2. For each answer with an `uploadUrl`, `PUT` the file to it **with exactly the same `Content-Type` and size**.
+     S3 refuses anything else. The address works for 5 minutes; ask again if it expires. Do not send the
+     `Authorization` header to S3.
+  3. Call `POST /api/v1/documents/{documentId}/uploaded`. 409 means the file has not arrived or is the wrong size.
+- An answer with `existingDocumentId` instead of an `uploadUrl` means that exact file is already in the vault:
+  skip the upload and show the existing document.
+- `GET /api/v1/projects/{projectId}/documents?status=&category=` lists documents; `GET /api/v1/documents/{id}` reads
+  one; `GET /api/v1/documents/{id}/source-url` gives a 5-minute address to open (PDF, JPG, PNG, WebP) or download
+  (anything else) the original. Open it in a new tab: the app's content security policy does not allow embedding
+  it in a frame.
+- A document or project the user cannot access answers 404, exactly like one that does not exist.
+
 ## Rate limits
 
 Sign-in calls are limited to 5 a minute per network, and everything to 120 a minute per user. Over the limit

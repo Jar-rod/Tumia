@@ -24,8 +24,10 @@ vault; TUMIIA works out what each file is, proposes where it belongs, and the us
    docker compose up -d
    ```
 
-   LocalStack creates the `local-tumiia-documents` bucket and the `local-document-analysis` queue (with its
-   dead-letter queue) on start-up.
+   LocalStack creates the `local-tumiia-documents` bucket (with CORS for the Vite dev server) and the
+   `local-document-analysis` queue (with its dead-letter queue) on start-up. It checks pre-signed URL signatures
+   like real S3, so an upload of the wrong size or type is refused locally too. Look inside with, for example,
+   `docker compose exec localstack awslocal s3 ls s3://local-tumiia-documents --recursive`.
 
 2. Start the API:
 
@@ -65,7 +67,7 @@ How the React app should handle tokens and the refresh cookie is in `docs/fronte
 
 ## Run the tests
 
-Docker must be running: the integration tests start their own PostgreSQL container.
+Docker must be running: the integration tests start their own PostgreSQL and LocalStack containers.
 
 ```bash
 cd services/api

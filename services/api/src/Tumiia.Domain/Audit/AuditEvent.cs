@@ -12,6 +12,9 @@ public sealed class AuditEvent
     /// <summary>The user the event is about, or null when it is not known (for example a login with an unknown email).</summary>
     public Guid? UserId { get; private set; }
 
+    /// <summary>The document the event is about, for document events.</summary>
+    public Guid? DocumentId { get; private set; }
+
     public AuditEventType EventType { get; private set; }
 
     /// <summary>The client's IP address, as worked out by the API.</summary>
@@ -22,13 +25,14 @@ public sealed class AuditEvent
     /// <summary>Whether the action worked (for example false for a failed login).</summary>
     public bool Success { get; private set; }
 
-    /// <summary>Records a new event.</summary>
-    public static AuditEvent Record(AuditEventType eventType, Guid? userId, string ipAddress, bool success, DateTimeOffset now)
+    /// <summary>Records a new event. <paramref name="documentId"/> is set for document events only.</summary>
+    public static AuditEvent Record(AuditEventType eventType, Guid? userId, string ipAddress, bool success, DateTimeOffset now, Guid? documentId = null)
     {
         return new AuditEvent
         {
             Id = Guid.NewGuid(),
             UserId = userId,
+            DocumentId = documentId,
             EventType = eventType,
             IpAddress = ipAddress,
             OccurredAt = now,

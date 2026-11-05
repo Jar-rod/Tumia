@@ -26,6 +26,8 @@ in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-C
 | Microsoft.AspNetCore.Authentication.JwtBearer | 10.0.14 | Checks access tokens | MIT |
 | Microsoft.IdentityModel.JsonWebTokens (+ IdentityModel tokens, protocols) | 8.23.0 / 8.19.2 | Creates and validates JWTs | MIT |
 | AWSSDK.SimpleEmailV2 (+ AWSSDK.Core) | 4.0.106.7 | Sends email through SES | Apache-2.0 |
+| AWSSDK.S3 | 4.0.104.9 | Pre-signed upload and download addresses, checking uploaded files | Apache-2.0 |
+| AWSSDK.SQS | 4.0.100.23 | Queues documents for analysis | Apache-2.0 |
 | .NET 10 runtime and ASP.NET Core (includes the built-in rate limiter) | 10.0 | Runtime | MIT |
 
 ## Build and development only (not shipped)
@@ -44,6 +46,7 @@ in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-C
 | coverlet.collector | 10.1.0 | Line coverage | MIT |
 | Microsoft.AspNetCore.Mvc.Testing | 10.0.14 | In-memory API for integration tests | MIT |
 | Testcontainers.PostgreSql | 4.16.0 | Real PostgreSQL in Docker for integration tests | MIT |
+| Testcontainers.LocalStack | 4.16.0 | LocalStack (S3, SQS) in Docker for integration tests | MIT |
 
 ## In the container image (`services/api/Dockerfile`)
 
