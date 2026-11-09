@@ -19,4 +19,21 @@ public class GitHubOidcTests(SynthesizedStacks stacks)
             $"repo:{SynthesizedStacks.Repo}:environment:prod",
         ], ignoreOrder: true);
     }
+
+    [Fact]
+    public void DeployRole_CanOnlyStopAndStartThisEnvironmentsDatabase()
+    {
+        var template = SynthesizedStacks.Json(stacks.BeforeFirstDeploy.GitHubOidc);
+        var statements = SynthesizedStacks.Resources(template, "AWS::IAM::Policy")
+            .SelectMany(policy => policy["Properties"]!["PolicyDocument"]!["Statement"]!.AsArray())
+            .Select(statement => statement!)
+            .ToList();
+
+        var stopStart = statements.Single(statement => statement["Sid"]?.GetValue<string>() == "StopAndStartDatabase");
+        var tags = stopStart["Condition"]!["StringEquals"]!;
+
+        stopStart["Action"]!.AsArray().Select(action => action!.GetValue<string>()).ShouldBe(["rds:StopDBInstance", "rds:StartDBInstance"], ignoreOrder: true);
+        tags["aws:ResourceTag/project"]!.GetValue<string>().ShouldBe("tumiia");
+        tags["aws:ResourceTag/env"]!.GetValue<string>().ShouldBe("prod");
+    }
 }

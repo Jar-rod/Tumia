@@ -25,6 +25,9 @@ public sealed class DataStack : Stack
     {
         Database = CreateDatabase(names, vpc);
         DocumentsBucket = CreateDocumentsBucket(settings, names);
+
+        // The "Start or stop AWS" workflow reads this to find the database.
+        _ = new CfnOutput(this, "DatabaseInstanceId", new CfnOutputProps { Value = Database.InstanceIdentifier });
     }
 
     /// <summary>

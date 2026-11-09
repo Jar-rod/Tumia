@@ -39,6 +39,7 @@ public sealed class GitHubOidcStack : Stack
         AddEcsDeployPermissions(settings, names);
         AddPassRoleAndLogPermissions(settings, names);
         AddFrontendDeployPermissions(settings, names);
+        AddStartStopPermissions(settings);
 
         _ = new CfnOutput(this, "DeployRoleArn", new CfnOutputProps { Value = DeployRole.RoleArn });
     }
@@ -153,6 +154,34 @@ public sealed class GitHubOidcStack : Stack
             Sid = "ReadMigrationLogs",
             Actions = ["logs:GetLogEvents", "logs:FilterLogEvents"],
             Resources = [$"arn:aws:logs:{InfraSettings.Region}:{account}:log-group:{names.LogGroupName}:*"],
+        }));
+    }
+
+    /// <summary>
+    /// Stop and start this environment's database (the "Start or stop AWS" workflow, and deploys starting a
+    /// stopped database first). Only databases tagged with this project and environment can be stopped or started.
+    /// </summary>
+    private void AddStartStopPermissions(InfraSettings settings)
+    {
+        DeployRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "ReadDatabaseStatus",
+            Actions = ["rds:DescribeDBInstances"],
+            Resources = [$"arn:aws:rds:{InfraSettings.Region}:{settings.Account}:db:*"],
+        }));
+        DeployRole.AddToPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Sid = "StopAndStartDatabase",
+            Actions = ["rds:StopDBInstance", "rds:StartDBInstance"],
+            Resources = [$"arn:aws:rds:{InfraSettings.Region}:{settings.Account}:db:*"],
+            Conditions = new Dictionary<string, object>
+            {
+                ["StringEquals"] = new Dictionary<string, object>
+                {
+                    ["aws:ResourceTag/project"] = "tumiia",
+                    ["aws:ResourceTag/env"] = settings.EnvironmentName,
+                },
+            },
         }));
     }
 

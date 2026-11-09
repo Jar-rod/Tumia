@@ -72,6 +72,24 @@ public class NetworkAndDataTests(SynthesizedStacks stacks)
     }
 
     [Fact]
+    public void Data_OutputsTheDatabaseId_SoTheStartStopWorkflowCanFindIt()
+    {
+        var template = Template.FromStack(stacks.BeforeFirstDeploy.Data);
+
+        template.HasOutput("DatabaseInstanceId", Match.AnyValue());
+    }
+
+    // Stack tags are copied onto the database by CloudFormation; the deploy role may only stop or start it by them.
+    [Fact]
+    public void DataStack_CarriesTheProjectAndEnvironmentTags_ThatTheDeployRoleNeedsToStopTheDatabase()
+    {
+        var tags = stacks.BeforeFirstDeploy.Data.Tags.TagValues();
+
+        tags["project"].ShouldBe("tumiia");
+        tags["env"].ShouldBe("prod");
+    }
+
+    [Fact]
     public void DocumentsBucket_WithoutADomain_AcceptsBrowserUploadsFromCloudFrontAddresses()
     {
         var template = Template.FromStack(stacks.BeforeFirstDeploy.Data);

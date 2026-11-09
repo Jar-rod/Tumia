@@ -169,6 +169,23 @@ Once `apps/web` exists, **Run workflow → target: `frontend`** (or `auto`).
   the API back.
 - The tests always run first. Nothing deploys if they fail.
 
+## Stopping and starting (to save money)
+
+**Actions → Start or stop AWS → Run workflow**, then choose:
+
+- **`stop`**: scales the API to 0 tasks, then stops the database. Takes about 5 minutes.
+- **`start`**: starts the database, waits until it is ready, then runs 1 API task. Takes about 10 minutes.
+- **`status`**: shows the database state, the API task count and the app's address.
+
+While stopped, the environment still costs about **US$0.75 a day**, mostly the load balancer (which cannot be
+stopped), plus database storage. Running, it costs about **US$2.20 a day**.
+
+- **Deploys turn it back on.** `infra` and `backend` start a stopped database first; after an `infra` or
+  `backend` deploy the API is running again.
+- **AWS starts a stopped database by itself after 7 days.** Run `stop` again if the pause is longer.
+- The budget `tumiia-test` (US$43.33 a month, about US$10 a week) emails the alert address at 50% and 100% of
+  actual spend, and when the month is forecast to go over.
+
 ## Things to know
 
 - **Deletion protection** is on for the database. Deleting the stack will not delete it.
