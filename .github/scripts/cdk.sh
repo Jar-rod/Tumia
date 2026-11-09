@@ -4,7 +4,7 @@
 #
 # Usage: cdk.sh <diff|deploy>   (run from the infra/ folder)
 # Required: ENV_NAME, AWS_ACCOUNT_ID, REPO_OIDC_SUBJECT, ALERT_EMAIL, CLOUDFRONT_PREFIX_LIST_ID
-# Optional: DOMAIN_NAME with HOSTED_ZONE_ID and HOSTED_ZONE_NAME (without them the app uses its CloudFront
+# Optional: ENABLE_SWAGGER ("true" serves Swagger UI at /swagger), DOMAIN_NAME with HOSTED_ZONE_ID and HOSTED_ZONE_NAME (without them the app uses its CloudFront
 #           address), SENDER_EMAIL (used when there is no domain), IMAGE_TAG, ADMIN_EMAILS, ENABLE_BEDROCK,
 #           BEDROCK_INFERENCE_PROFILE_ARN, BEDROCK_MODEL_ID
 set -euo pipefail
@@ -41,6 +41,10 @@ fi
 # Comma-separated emails that get the Admin role.
 if [ -n "${ADMIN_EMAILS:-}" ]; then
   context+=(-c "adminEmails=$ADMIN_EMAILS")
+fi
+
+if [ "${ENABLE_SWAGGER:-false}" = "true" ]; then
+  context+=(-c "enableSwagger=true")
 fi
 
 if [ "${ENABLE_BEDROCK:-false}" = "true" ]; then

@@ -114,7 +114,11 @@ Copy the `DeployRoleArn` from the output.
    Without a domain, optionally `SENDER_EMAIL` (defaults to `ALERT_EMAIL`). With your own domain, also
    `DOMAIN_NAME` (e.g. `app.example.co.za`), `HOSTED_ZONE_ID` and `HOSTED_ZONE_NAME` (e.g. `example.co.za`).
 
-   Optional in the same environment: `ADMIN_EMAILS`, a comma-separated list of emails that get the Admin role when
+   Optional in the same environment: `ENABLE_SWAGGER` = `true` serves Swagger UI at `https://<app address>/swagger`
+   and the OpenAPI document at `/openapi/v1.json` (off by default, because it publishes the API's description; every
+   endpoint still needs a token). Run `infra` after changing it.
+
+   Also optional: `ADMIN_EMAILS`, a comma-separated list of emails that get the Admin role when
    they register or sign in (needed for taxonomy settings and the feedback export). Run `infra` after changing it.
 
 3. Optional, as a **repository** variable (Settings → Secrets and variables → Actions → Variables):

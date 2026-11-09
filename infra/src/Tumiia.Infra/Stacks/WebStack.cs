@@ -15,7 +15,8 @@ namespace Tumiia.Infra.Stacks;
 
 /// <summary>
 /// Serves the React app and the API from one address through CloudFront: <c>/*</c> comes from a private S3
-/// bucket, <c>/api/*</c> goes to the internal load balancer through a VPC origin. One origin means no CORS and a
+/// bucket; <c>/api/*</c>, and Swagger's <c>/swagger*</c> and <c>/openapi/*</c>, go to the internal load balancer
+/// through a VPC origin. One origin means no CORS and a
 /// strict refresh cookie. With a domain, CloudFront answers on it; without one, on its own <c>*.cloudfront.net</c>
 /// address.
 /// </summary>
@@ -114,7 +115,8 @@ public sealed class WebStack : Stack
 
     /// <summary>
     /// <c>/*</c> serves the app from S3 (cached), sending page addresses to <c>index.html</c>.
-    /// <c>/api/*</c> goes to the load balancer (see <see cref="ApiBehaviour"/>).
+    /// <c>/api/*</c> goes to the load balancer (see <see cref="ApiBehaviour"/>), and so do Swagger UI and the OpenAPI
+    /// documents. Those two answer 404 unless Swagger is switched on (<see cref="InfraSettings.EnableSwagger"/>).
     /// </summary>
     private Distribution CreateDistribution(
         InfraSettings settings,
@@ -150,6 +152,8 @@ public sealed class WebStack : Stack
             AdditionalBehaviors = new Dictionary<string, IBehaviorOptions>
             {
                 ["/api/*"] = ApiBehaviour(apiOrigin, securityHeaders),
+                ["/swagger*"] = ApiBehaviour(apiOrigin, securityHeaders),
+                ["/openapi/*"] = ApiBehaviour(apiOrigin, securityHeaders),
             },
         });
     }

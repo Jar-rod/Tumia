@@ -123,6 +123,7 @@ jobs:
           SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
           CLOUDFRONT_PREFIX_LIST_ID: ${{ vars.CLOUDFRONT_PREFIX_LIST_ID }}
           ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
+          ENABLE_SWAGGER: ${{ vars.ENABLE_SWAGGER || 'false' }}
           ENABLE_BEDROCK: ${{ vars.ENABLE_BEDROCK || 'false' }}
           BEDROCK_INFERENCE_PROFILE_ARN: ${{ vars.BEDROCK_INFERENCE_PROFILE_ARN }}
           BEDROCK_MODEL_ID: ${{ vars.BEDROCK_MODEL_ID }}

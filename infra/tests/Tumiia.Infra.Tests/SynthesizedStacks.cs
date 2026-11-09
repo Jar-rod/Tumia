@@ -22,11 +22,12 @@ public sealed class SynthesizedStacks
     /// <summary>Stacks with the app's own domain in Route 53.</summary>
     public TumiiaStacks WithDomain { get; } = Create(DomainSettings());
 
-    /// <summary>Stacks once an image is deployed, with Bedrock switched on.</summary>
+    /// <summary>Stacks once an image is deployed, with Swagger and Bedrock switched on.</summary>
     public TumiiaStacks WithImageAndBedrock { get; } = Create(new Dictionary<string, object>
     {
         ["imageTag"] = "abc1234",
         ["adminEmails"] = "owner@example.co.za",
+        ["enableSwagger"] = "true",
         ["enableBedrock"] = "true",
         ["bedrockInferenceProfileArn"] = "arn:aws:bedrock:af-south-1:123456789012:inference-profile/global.example",
         ["bedrockModelId"] = "example.model-v1",
