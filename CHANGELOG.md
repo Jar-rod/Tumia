@@ -49,6 +49,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Integration tests run the upload flow against a LocalStack container (S3 and SQS).
 
 ### Changed
+- **A custom domain is now optional for AWS.** Without `DOMAIN_NAME` (and `HOSTED_ZONE_ID`, `HOSTED_ZONE_NAME`), users open the CloudFront address (`*.cloudfront.net`), no certificate or Route 53 records are made, and password reset emails come from a single SES-verified address: the new optional `SENDER_EMAIL` deploy variable, defaulting to `ALERT_EMAIL`. Setting the domain variables later and deploying `infra` switches to the domain.
+- The API's load balancer is now **internal** (no public address), in new isolated `load-balancer` subnets, with an HTTP listener on port 80. CloudFront reaches it through a **CloudFront VPC origin**, so it no longer needs the `origin.<domain>` certificate and DNS record. It still only accepts CloudFront's prefix list, and CloudFront still sends `X-Origin-Verify`.
+- The API reads `App__BaseUrl` from the SSM parameter `/prod/tumiia/app-base-url`, written by the web stack (the domain, or the CloudFront address), instead of a plain environment variable.
+- The database now selects its subnets by name (`database`), since the VPC has two isolated subnet groups.
 - API enums are now written as names in JSON and in the OpenAPI contract (`"New"`, `"drag_drop"`), not numbers.
 - Local LocalStack checks pre-signed URL signatures like real S3 (`S3_SKIP_SIGNATURE_VALIDATION=0`) and the local documents bucket allows browser uploads from `http://localhost:5173`.
 - Every controller action now needs a signed-in user unless it has `[AllowAnonymous]`. Swagger UI shows a padlock on every operation that needs a token.

@@ -63,9 +63,35 @@ public class NetworkAndDataTests(SynthesizedStacks stacks)
     }
 
     [Fact]
-    public void DocumentsBucket_IsVersionedAndOnlyAcceptsBrowserUploadsFromTheApp()
+    public void Network_PutsTheDatabaseAndTheLoadBalancerInSeparateIsolatedSubnets()
+    {
+        var template = SynthesizedStacks.Json(stacks.BeforeFirstDeploy.Network).ToJsonString();
+
+        template.ShouldContain("\"Value\":\"database\"");
+        template.ShouldContain("\"Value\":\"load-balancer\"");
+    }
+
+    [Fact]
+    public void DocumentsBucket_WithoutADomain_AcceptsBrowserUploadsFromCloudFrontAddresses()
     {
         var template = Template.FromStack(stacks.BeforeFirstDeploy.Data);
+
+        template.HasResourceProperties("AWS::S3::Bucket", Match.ObjectLike(new Dictionary<string, object>
+        {
+            ["CorsConfiguration"] = new Dictionary<string, object>
+            {
+                ["CorsRules"] = new object[]
+                {
+                    Match.ObjectLike(new Dictionary<string, object> { ["AllowedOrigins"] = new[] { "https://*.cloudfront.net" } }),
+                },
+            },
+        }));
+    }
+
+    [Fact]
+    public void DocumentsBucket_IsVersionedAndOnlyAcceptsBrowserUploadsFromTheApp()
+    {
+        var template = Template.FromStack(stacks.WithDomain.Data);
 
         template.HasResourceProperties("AWS::S3::Bucket", Match.ObjectLike(new Dictionary<string, object>
         {

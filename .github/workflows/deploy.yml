@@ -117,6 +117,7 @@ jobs:
           HOSTED_ZONE_NAME: ${{ vars.HOSTED_ZONE_NAME }}
           REPO_OIDC_SUBJECT: ${{ vars.REPO_OIDC_SUBJECT }}
           ALERT_EMAIL: ${{ vars.ALERT_EMAIL }}
+          SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
           CLOUDFRONT_PREFIX_LIST_ID: ${{ vars.CLOUDFRONT_PREFIX_LIST_ID }}
           ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
           ENABLE_BEDROCK: ${{ vars.ENABLE_BEDROCK || 'false' }}

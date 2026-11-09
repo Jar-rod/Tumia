@@ -16,13 +16,17 @@ public sealed class TumiiaStacks
 
     public required AppStack App { get; init; }
 
-    public required WebCertificateStack WebCertificate { get; init; }
+    /// <summary>Null when the app has no domain of its own (it then uses the CloudFront address).</summary>
+    public required WebCertificateStack? WebCertificate { get; init; }
 
     public required WebStack Web { get; init; }
 
     public required EmailStack Email { get; init; }
 
-    /// <summary>Adds all stacks to the CDK app. Everything is in af-south-1 except the CloudFront certificate.</summary>
+    /// <summary>
+    /// Adds all stacks to the CDK app. Everything is in af-south-1 except the CloudFront certificate, which is
+    /// only made when the app has its own domain.
+    /// </summary>
     public static TumiiaStacks Create(App app, InfraSettings settings)
     {
         var names = new ResourceNames(settings.EnvironmentName, settings.Account);
@@ -34,9 +38,11 @@ public sealed class TumiiaStacks
         var data = new DataStack(app, names.Stack("data"), capeTown("Database and documents bucket"), settings, names, network.Vpc);
         var messaging = new MessagingStack(app, names.Stack("messaging"), capeTown("Analysis queue and alarms"), settings, names);
         var appStack = new AppStack(app, names.Stack("app"), capeTown("API on ECS Fargate behind a load balancer"), settings, names, network.Vpc, data, messaging);
-        var webCertificate = new WebCertificateStack(app, names.Stack("web-certificate"), usEast1("CloudFront certificate"), settings);
-        var web = new WebStack(app, names.Stack("web"), capeTown("React app on S3 and CloudFront"), settings, names, webCertificate.Certificate, appStack.OriginVerifySecret);
-        var email = new EmailStack(app, names.Stack("email"), capeTown("SES domain identity"), settings);
+        var webCertificate = settings.HasDomain
+            ? new WebCertificateStack(app, names.Stack("web-certificate"), usEast1("CloudFront certificate"), settings)
+            : null;
+        var web = new WebStack(app, names.Stack("web"), capeTown("React app on S3 and CloudFront"), settings, names, webCertificate?.Certificate, appStack.LoadBalancer, appStack.OriginVerifySecret);
+        var email = new EmailStack(app, names.Stack("email"), capeTown("SES email identity"), settings);
 
         return new TumiiaStacks
         {

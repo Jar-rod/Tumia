@@ -3,9 +3,10 @@
 # (set from the GitHub "prod" environment variables in deploy.yml).
 #
 # Usage: cdk.sh <diff|deploy>   (run from the infra/ folder)
-# Required: ENV_NAME, AWS_ACCOUNT_ID, DOMAIN_NAME, HOSTED_ZONE_ID, HOSTED_ZONE_NAME, REPO_OIDC_SUBJECT,
-#           ALERT_EMAIL, CLOUDFRONT_PREFIX_LIST_ID
-# Optional: IMAGE_TAG, ADMIN_EMAILS, ENABLE_BEDROCK, BEDROCK_INFERENCE_PROFILE_ARN, BEDROCK_MODEL_ID
+# Required: ENV_NAME, AWS_ACCOUNT_ID, REPO_OIDC_SUBJECT, ALERT_EMAIL, CLOUDFRONT_PREFIX_LIST_ID
+# Optional: DOMAIN_NAME with HOSTED_ZONE_ID and HOSTED_ZONE_NAME (without them the app uses its CloudFront
+#           address), SENDER_EMAIL (used when there is no domain), IMAGE_TAG, ADMIN_EMAILS, ENABLE_BEDROCK,
+#           BEDROCK_INFERENCE_PROFILE_ARN, BEDROCK_MODEL_ID
 set -euo pipefail
 
 command="${1:?Pass diff or deploy}"
@@ -14,13 +15,23 @@ cdk_version="2.1147.0"
 context=(
   -c "env=${ENV_NAME:?}"
   -c "account=${AWS_ACCOUNT_ID:?}"
-  -c "domainName=${DOMAIN_NAME:?}"
-  -c "hostedZoneId=${HOSTED_ZONE_ID:?}"
-  -c "hostedZoneName=${HOSTED_ZONE_NAME:?}"
   -c "githubRepo=${REPO_OIDC_SUBJECT:?}"
   -c "alertEmail=${ALERT_EMAIL:?}"
   -c "cloudFrontPrefixListId=${CLOUDFRONT_PREFIX_LIST_ID:?}"
 )
+
+# Without a domain, users open the CloudFront address and email comes from SENDER_EMAIL (or ALERT_EMAIL).
+if [ -n "${DOMAIN_NAME:-}" ]; then
+  context+=(
+    -c "domainName=$DOMAIN_NAME"
+    -c "hostedZoneId=${HOSTED_ZONE_ID:?DOMAIN_NAME also needs HOSTED_ZONE_ID}"
+    -c "hostedZoneName=${HOSTED_ZONE_NAME:-$DOMAIN_NAME}"
+  )
+fi
+
+if [ -n "${SENDER_EMAIL:-}" ]; then
+  context+=(-c "senderEmail=$SENDER_EMAIL")
+fi
 
 # Keep the image the service is already running; otherwise CDK would roll the API back to an older image.
 if [ -n "${IMAGE_TAG:-}" ]; then

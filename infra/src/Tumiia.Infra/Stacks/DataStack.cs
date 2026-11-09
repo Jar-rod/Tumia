@@ -38,7 +38,7 @@ public sealed class DataStack : Stack
             Engine = DatabaseInstanceEngine.Postgres(new PostgresInstanceEngineProps { Version = PostgresEngineVersion.Of("17", "17") }),
             InstanceType = InstanceType.Of(InstanceClass.BURSTABLE4_GRAVITON, InstanceSize.MICRO),
             Vpc = vpc,
-            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PRIVATE_ISOLATED },
+            VpcSubnets = new SubnetSelection { SubnetGroupName = NetworkStack.DatabaseSubnets },
             DatabaseName = "tumiia",
             Credentials = Credentials.FromGeneratedSecret("tumiia_admin", new CredentialsBaseOptions { SecretName = names.DatabaseSecretName }),
             AllocatedStorage = 20,
@@ -55,7 +55,9 @@ public sealed class DataStack : Stack
 
     /// <summary>
     /// Private, versioned, encrypted with S3-managed keys, HTTPS only. Browsers upload and download with
-    /// pre-signed URLs, so CORS allows PUT and GET from the app's own address only.
+    /// pre-signed URLs, so CORS allows PUT and GET from the app's own address only. Without a domain the
+    /// CloudFront address is not known yet when this stack is built, so any <c>*.cloudfront.net</c> page is
+    /// allowed; uploads and downloads still need a pre-signed URL from the API.
     /// </summary>
     private Bucket CreateDocumentsBucket(InfraSettings settings, ResourceNames names)
     {
@@ -72,7 +74,7 @@ public sealed class DataStack : Stack
                 new CorsRule
                 {
                     AllowedMethods = [HttpMethods.PUT, HttpMethods.GET],
-                    AllowedOrigins = [$"https://{settings.DomainName}"],
+                    AllowedOrigins = [settings.HasDomain ? $"https://{settings.DomainName}" : "https://*.cloudfront.net"],
                     AllowedHeaders = ["*"],
                     ExposedHeaders = ["ETag"],
                     MaxAge = 3000,

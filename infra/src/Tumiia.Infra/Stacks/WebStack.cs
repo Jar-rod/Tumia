@@ -2,10 +2,12 @@ using Amazon.CDK;
 using Amazon.CDK.AWS.CertificateManager;
 using Amazon.CDK.AWS.CloudFront;
 using Amazon.CDK.AWS.CloudFront.Origins;
+using Amazon.CDK.AWS.ElasticLoadBalancingV2;
 using Amazon.CDK.AWS.Route53;
 using Amazon.CDK.AWS.Route53.Targets;
 using Amazon.CDK.AWS.S3;
 using Amazon.CDK.AWS.SecretsManager;
+using Amazon.CDK.AWS.SSM;
 using Constructs;
 using CloudFrontFunction = Amazon.CDK.AWS.CloudFront.Function;
 
@@ -13,7 +15,9 @@ namespace Tumiia.Infra.Stacks;
 
 /// <summary>
 /// Serves the React app and the API from one address through CloudFront: <c>/*</c> comes from a private S3
-/// bucket, <c>/api/*</c> goes to the load balancer. One origin means no CORS and a strict refresh cookie.
+/// bucket, <c>/api/*</c> goes to the internal load balancer through a VPC origin. One origin means no CORS and a
+/// strict refresh cookie. With a domain, CloudFront answers on it; without one, on its own <c>*.cloudfront.net</c>
+/// address.
 /// </summary>
 public sealed class WebStack : Stack
 {
@@ -32,14 +36,18 @@ public sealed class WebStack : Stack
         }
         """;
 
-    /// <summary>Creates the web bucket, the CloudFront distribution and the DNS records for the app.</summary>
+    /// <summary>
+    /// Creates the web bucket, the CloudFront distribution, the DNS records (with a domain) and the parameter
+    /// that tells the API its own address. <paramref name="certificate"/> is null when there is no domain.
+    /// </summary>
     public WebStack(
         Construct scope,
         string id,
         IStackProps props,
         InfraSettings settings,
         ResourceNames names,
-        ICertificate certificate,
+        ICertificate? certificate,
+        IApplicationLoadBalancer loadBalancer,
         ISecret originVerifySecret)
         : base(scope, id, props)
     {
@@ -53,8 +61,13 @@ public sealed class WebStack : Stack
         });
 
         var securityHeaders = CreateSecurityHeaders(settings, names);
-        var distribution = CreateDistribution(settings, webBucket, certificate, originVerifySecret, securityHeaders);
-        AddDnsRecords(settings, distribution);
+        var distribution = CreateDistribution(settings, webBucket, certificate, ApiOrigin(loadBalancer, originVerifySecret), securityHeaders);
+        if (settings.HasDomain)
+        {
+            AddDnsRecords(settings, distribution);
+        }
+
+        PublishAppBaseUrl(settings, names, distribution);
 
         _ = new CfnOutput(this, "WebBucketName", new CfnOutputProps { Value = webBucket.BucketName });
         _ = new CfnOutput(this, "DistributionId", new CfnOutputProps { Value = distribution.DistributionId });
@@ -106,8 +119,8 @@ public sealed class WebStack : Stack
     private Distribution CreateDistribution(
         InfraSettings settings,
         IBucket webBucket,
-        ICertificate certificate,
-        ISecret originVerifySecret,
+        ICertificate? certificate,
+        IOrigin apiOrigin,
         IResponseHeadersPolicy securityHeaders)
     {
         var spaRouting = new CloudFrontFunction(this, "SpaRouting", new FunctionProps
@@ -120,10 +133,11 @@ public sealed class WebStack : Stack
         return new Distribution(this, "Distribution", new DistributionProps
         {
             Comment = $"TUMIIA {settings.EnvironmentName}",
-            DomainNames = [settings.DomainName],
+            DomainNames = settings.HasDomain ? [settings.DomainName!] : null,
             Certificate = certificate,
             DefaultRootObject = "index.html",
-            MinimumProtocolVersion = SecurityPolicyProtocol.TLS_V1_2_2021,
+            // CloudFront's default certificate has a fixed TLS policy, so the minimum only applies with a domain.
+            MinimumProtocolVersion = settings.HasDomain ? SecurityPolicyProtocol.TLS_V1_2_2021 : null,
             HttpVersion = HttpVersion.HTTP2_AND_3,
             DefaultBehavior = new BehaviorOptions
             {
@@ -135,26 +149,34 @@ public sealed class WebStack : Stack
             },
             AdditionalBehaviors = new Dictionary<string, IBehaviorOptions>
             {
-                ["/api/*"] = ApiBehaviour(settings, originVerifySecret, securityHeaders),
+                ["/api/*"] = ApiBehaviour(apiOrigin, securityHeaders),
+            },
+        });
+    }
+
+    /// <summary>
+    /// The internal load balancer, reached through a CloudFront VPC origin: CloudFront connects to it inside the
+    /// VPC, so it needs no public address or certificate. The secret header lets the API reject anything else.
+    /// </summary>
+    private static IOrigin ApiOrigin(IApplicationLoadBalancer loadBalancer, ISecret originVerifySecret)
+    {
+        return VpcOrigin_.WithApplicationLoadBalancer(loadBalancer, new VpcOriginWithEndpointProps
+        {
+            ProtocolPolicy = OriginProtocolPolicy.HTTP_ONLY,
+            HttpPort = 80,
+            CustomHeaders = new Dictionary<string, string>
+            {
+                [ResourceNames.OriginVerifyHeader] = originVerifySecret.SecretValue.UnsafeUnwrap(),
             },
         });
     }
 
     /// <summary>
     /// <c>/api/*</c>: never cached, every method allowed, all viewer headers, cookies and query strings passed on
-    /// (including <c>CloudFront-Viewer-Address</c>), over HTTPS to the load balancer with the secret header.
+    /// (including <c>CloudFront-Viewer-Address</c>), to the load balancer with the secret header.
     /// </summary>
-    private static BehaviorOptions ApiBehaviour(InfraSettings settings, ISecret originVerifySecret, IResponseHeadersPolicy securityHeaders)
+    private static BehaviorOptions ApiBehaviour(IOrigin apiOrigin, IResponseHeadersPolicy securityHeaders)
     {
-        var apiOrigin = new HttpOrigin(ResourceNames.OriginHostName(settings.DomainName), new HttpOriginProps
-        {
-            ProtocolPolicy = OriginProtocolPolicy.HTTPS_ONLY,
-            CustomHeaders = new Dictionary<string, string>
-            {
-                [ResourceNames.OriginVerifyHeader] = originVerifySecret.SecretValue.UnsafeUnwrap(),
-            },
-        });
-
         return new BehaviorOptions
         {
             Origin = apiOrigin,
@@ -166,13 +188,29 @@ public sealed class WebStack : Stack
         };
     }
 
+    /// <summary>
+    /// Writes the app's public address (the domain, or the CloudFront address) to SSM, where the API reads it for
+    /// the links in emails.
+    /// </summary>
+    private void PublishAppBaseUrl(InfraSettings settings, ResourceNames names, IDistribution distribution)
+    {
+        var host = settings.HasDomain ? settings.DomainName! : distribution.DistributionDomainName;
+
+        _ = new StringParameter(this, "AppBaseUrl", new StringParameterProps
+        {
+            ParameterName = names.AppBaseUrlParameterName,
+            Description = "The app's public address, used by the API for links in emails.",
+            StringValue = $"https://{host}",
+        });
+    }
+
     /// <summary>Points the app's address (IPv4 and IPv6) at CloudFront.</summary>
     private void AddDnsRecords(InfraSettings settings, IDistribution distribution)
     {
         var zone = PublicHostedZone.FromPublicHostedZoneAttributes(this, "Zone", new PublicHostedZoneAttributes
         {
-            HostedZoneId = settings.HostedZoneId,
-            ZoneName = settings.HostedZoneName,
+            HostedZoneId = settings.HostedZoneId!,
+            ZoneName = settings.HostedZoneName!,
         });
         var target = RecordTarget.FromAlias(new CloudFrontTarget(distribution));
 

@@ -20,14 +20,23 @@ public sealed record InfraSettings
     /// <summary>The 12-digit AWS account id.</summary>
     public required string Account { get; init; }
 
-    /// <summary>The address users open, for example <c>app.example.co.za</c>.</summary>
-    public required string DomainName { get; init; }
+    /// <summary>
+    /// The address users open, for example <c>app.example.co.za</c>. Optional: without it, users open the
+    /// CloudFront address (<c>d1234abcd.cloudfront.net</c>) and email comes from <see cref="SenderEmail"/>.
+    /// </summary>
+    public string? DomainName { get; init; }
 
-    /// <summary>The Route 53 hosted zone that holds <see cref="DomainName"/>.</summary>
-    public required string HostedZoneId { get; init; }
+    /// <summary>The Route 53 hosted zone that holds <see cref="DomainName"/>. Required with a domain.</summary>
+    public string? HostedZoneId { get; init; }
 
     /// <summary>The hosted zone's own name, for example <c>example.co.za</c>. Defaults to <see cref="DomainName"/>.</summary>
-    public required string HostedZoneName { get; init; }
+    public string? HostedZoneName { get; init; }
+
+    /// <summary>
+    /// The address password reset emails come from when there is no domain. SES emails it a link to click
+    /// before it can send. Defaults to <see cref="AlertEmail"/>. Ignored with a domain (<c>no-reply@domain</c>).
+    /// </summary>
+    public string? SenderEmail { get; init; }
 
     /// <summary>
     /// The GitHub repository as it appears in the OIDC token's subject: <c>owner/name</c>, or the immutable form
@@ -59,16 +68,18 @@ public sealed record InfraSettings
     /// <summary>Reads the settings from CDK context and stops with a clear message when a required one is missing.</summary>
     public static InfraSettings FromContext(Node node)
     {
-        var domainName = Required(node, "domainName");
+        var domainName = Optional(node, "domainName");
+        var alertEmail = Required(node, "alertEmail");
         var settings = new InfraSettings
         {
             EnvironmentName = Optional(node, "env") ?? "prod",
             Account = Required(node, "account"),
             DomainName = domainName,
-            HostedZoneId = Required(node, "hostedZoneId"),
+            HostedZoneId = Optional(node, "hostedZoneId"),
             HostedZoneName = Optional(node, "hostedZoneName") ?? domainName,
+            SenderEmail = Optional(node, "senderEmail") ?? alertEmail,
             GitHubRepo = Required(node, "githubRepo"),
-            AlertEmail = Required(node, "alertEmail"),
+            AlertEmail = alertEmail,
             CloudFrontPrefixListId = Required(node, "cloudFrontPrefixListId"),
             AdminEmails = Optional(node, "adminEmails"),
             ImageTag = Optional(node, "imageTag"),
@@ -77,8 +88,26 @@ public sealed record InfraSettings
             BedrockModelId = Optional(node, "bedrockModelId"),
         };
 
+        settings.CheckDomainSettings();
         settings.CheckBedrockSettings();
         return settings;
+    }
+
+    /// <summary>True when the app has its own domain in Route 53; false when it uses the CloudFront address.</summary>
+    public bool HasDomain => DomainName is not null;
+
+    /// <summary>The address password reset emails come from: <c>no-reply@domain</c>, or <see cref="SenderEmail"/>.</summary>
+    public string EmailFromAddress => HasDomain ? $"no-reply@{DomainName}" : SenderEmail!;
+
+    /// <summary>The SES identity the API sends as: the domain, or the single sender address.</summary>
+    public string EmailIdentity => DomainName ?? SenderEmail!;
+
+    private void CheckDomainSettings()
+    {
+        if (HasDomain && HostedZoneId is null)
+        {
+            throw new ArgumentException("domainName also needs -c hostedZoneId=... (the Route 53 zone that holds it).");
+        }
     }
 
     private void CheckBedrockSettings()
