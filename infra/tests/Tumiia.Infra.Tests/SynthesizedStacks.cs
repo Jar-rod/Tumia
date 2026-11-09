@@ -14,9 +14,13 @@ public sealed class SynthesizedStacks
     public const string Repo = "Jar-rod@121164104/Tumia@987654321";
     public const string DomainName = "app.example.co.za";
     public const string PrefixListId = "pl-12345678";
+    public const string AlertEmail = "alerts@example.co.za";
 
-    /// <summary>Stacks as on the very first deploy: no image yet, Bedrock off.</summary>
+    /// <summary>Stacks as on the very first deploy: no domain, no image yet, Bedrock off.</summary>
     public TumiiaStacks BeforeFirstDeploy { get; } = Create(new Dictionary<string, object>());
+
+    /// <summary>Stacks with the app's own domain in Route 53.</summary>
+    public TumiiaStacks WithDomain { get; } = Create(DomainSettings());
 
     /// <summary>Stacks once an image is deployed, with Bedrock switched on.</summary>
     public TumiiaStacks WithImageAndBedrock { get; } = Create(new Dictionary<string, object>
@@ -28,17 +32,25 @@ public sealed class SynthesizedStacks
         ["bedrockModelId"] = "example.model-v1",
     });
 
-    /// <summary>The usual settings, plus any extra context the test needs.</summary>
+    /// <summary>The settings that give the app its own domain.</summary>
+    public static Dictionary<string, object> DomainSettings()
+    {
+        return new Dictionary<string, object>
+        {
+            ["domainName"] = DomainName,
+            ["hostedZoneName"] = "example.co.za",
+            ["hostedZoneId"] = "Z0123456789ABCDEFGHIJ",
+        };
+    }
+
+    /// <summary>The usual settings (no domain), plus any extra context the test needs.</summary>
     public static Dictionary<string, object> Context(Dictionary<string, object> extra)
     {
         var context = new Dictionary<string, object>
         {
             ["account"] = "123456789012",
-            ["domainName"] = DomainName,
-            ["hostedZoneName"] = "example.co.za",
-            ["hostedZoneId"] = "Z0123456789ABCDEFGHIJ",
             ["githubRepo"] = Repo,
-            ["alertEmail"] = "alerts@example.co.za",
+            ["alertEmail"] = AlertEmail,
             ["cloudFrontPrefixListId"] = PrefixListId,
         };
 

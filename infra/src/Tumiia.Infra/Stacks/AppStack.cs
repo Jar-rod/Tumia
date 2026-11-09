@@ -1,13 +1,10 @@
 using Amazon.CDK;
-using Amazon.CDK.AWS.CertificateManager;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ECR;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.ElasticLoadBalancingV2;
 using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
-using Amazon.CDK.AWS.Route53;
-using Amazon.CDK.AWS.Route53.Targets;
 using Amazon.CDK.AWS.SecretsManager;
 using Amazon.CDK.AWS.SSM;
 using Constructs;
@@ -18,8 +15,9 @@ using Protocol = Amazon.CDK.AWS.ElasticLoadBalancingV2.Protocol;
 namespace Tumiia.Infra.Stacks;
 
 /// <summary>
-/// The API: its image repository, the ECS Fargate service that runs it (ARM64, 0.5 vCPU / 1 GB), and the load
-/// balancer in front of it. Only CloudFront can reach the load balancer.
+/// The API: its image repository, the ECS Fargate service that runs it (ARM64, 0.5 vCPU / 1 GB), and the internal
+/// load balancer in front of it. The load balancer has no public address; only CloudFront reaches it, through a
+/// VPC origin (see <see cref="WebStack"/>).
 /// </summary>
 public sealed class AppStack : Stack
 {
@@ -30,6 +28,9 @@ public sealed class AppStack : Stack
     /// did not come through CloudFront. Generated here; nobody needs to type or see it.
     /// </summary>
     public ISecret OriginVerifySecret { get; }
+
+    /// <summary>The internal load balancer CloudFront sends <c>/api/*</c> to.</summary>
+    public ApplicationLoadBalancer LoadBalancer { get; }
 
     /// <summary>Creates the API's image repository, task definition, service and load balancer.</summary>
     public AppStack(
@@ -56,14 +57,9 @@ public sealed class AppStack : Stack
         var service = CreateService(settings, names, vpc, taskDefinition);
         AllowServiceToReachDatabase(service, data);
 
-        var zone = PublicHostedZone.FromPublicHostedZoneAttributes(this, "Zone", new PublicHostedZoneAttributes
-        {
-            HostedZoneId = settings.HostedZoneId,
-            ZoneName = settings.HostedZoneName,
-        });
-        var loadBalancer = CreateLoadBalancer(settings, vpc, service, zone);
+        LoadBalancer = CreateLoadBalancer(settings, vpc, service);
 
-        _ = new CfnOutput(this, "LoadBalancerDnsName", new CfnOutputProps { Value = loadBalancer.LoadBalancerDnsName });
+        _ = new CfnOutput(this, "LoadBalancerDnsName", new CfnOutputProps { Value = LoadBalancer.LoadBalancerDnsName });
         _ = new CfnOutput(this, "ClusterName", new CfnOutputProps { Value = names.ClusterName });
         _ = new CfnOutput(this, "ServiceName", new CfnOutputProps { Value = names.ServiceName });
     }
@@ -126,7 +122,7 @@ public sealed class AppStack : Stack
         {
             Sid = "SendEmail",
             Actions = ["ses:SendEmail", "ses:SendRawEmail"],
-            Resources = [$"arn:aws:ses:{InfraSettings.Region}:{settings.Account}:identity/{settings.DomainName}"],
+            Resources = [$"arn:aws:ses:{InfraSettings.Region}:{settings.Account}:identity/{settings.EmailIdentity}"],
         }));
 
         if (settings.EnableBedrock)
@@ -245,7 +241,7 @@ public sealed class AppStack : Stack
 
     /// <summary>
     /// Plain (non-secret) settings for the API, as environment variables. Email goes out through SES from
-    /// <c>no-reply@&lt;domain&gt;</c>, and links in emails point at the app's own address.
+    /// <c>no-reply@&lt;domain&gt;</c>, or from the sender address when there is no domain.
     /// </summary>
     private static Dictionary<string, string> ContainerSettings(InfraSettings settings, DataStack data, MessagingStack messaging)
     {
@@ -254,10 +250,9 @@ public sealed class AppStack : Stack
             ["ASPNETCORE_ENVIRONMENT"] = "Production",
             ["Swagger__Enabled"] = "false",
             ["Aws__Region"] = InfraSettings.Region,
-            ["App__BaseUrl"] = $"https://{settings.DomainName}",
             ["Admin__Emails"] = settings.AdminEmails ?? string.Empty,
             ["Email__Provider"] = "Ses",
-            ["Email__FromAddress"] = $"no-reply@{settings.DomainName}",
+            ["Email__FromAddress"] = settings.EmailFromAddress,
             ["Storage__DocumentsBucket"] = data.DocumentsBucket.BucketName,
             ["Queues__DocumentAnalysisUrl"] = messaging.Queue.QueueUrl,
         };
@@ -266,6 +261,8 @@ public sealed class AppStack : Stack
     /// <summary>
     /// The database settings come from the RDS secret's fields; the app joins them into a connection string.
     /// The JWT key is an SSM SecureString created by hand (CloudFormation cannot create SecureStrings).
+    /// The app's address, for links in emails, is the parameter the web stack writes once CloudFront exists.
+    /// It is looked up by name so this stack does not depend on the web stack.
     /// </summary>
     private Dictionary<string, EcsSecret> ContainerSecrets(ResourceNames names, DataStack data)
     {
@@ -275,8 +272,11 @@ public sealed class AppStack : Stack
             ParameterName = names.JwtSigningKeyParameterName,
         });
 
+        var appBaseUrl = StringParameter.FromStringParameterName(this, "AppBaseUrl", names.AppBaseUrlParameterName);
+
         return new Dictionary<string, EcsSecret>
         {
+            ["App__BaseUrl"] = EcsSecret.FromSsmParameter(appBaseUrl),
             ["Database__Host"] = EcsSecret.FromSecretsManager(databaseSecret, "host"),
             ["Database__Port"] = EcsSecret.FromSecretsManager(databaseSecret, "port"),
             ["Database__Name"] = EcsSecret.FromSecretsManager(databaseSecret, "dbname"),
@@ -311,71 +311,46 @@ public sealed class AppStack : Stack
     }
 
     /// <summary>
-    /// HTTPS load balancer at <c>origin.&lt;domain&gt;</c>, sending requests to the API tasks. Only CloudFront can
-    /// reach it.
+    /// Internal load balancer in the isolated load-balancer subnets, sending requests to the API tasks. It has no
+    /// public address and only CloudFront can reach it. Plain HTTP is fine here: the traffic never leaves AWS.
     /// </summary>
-    private ApplicationLoadBalancer CreateLoadBalancer(InfraSettings settings, IVpc vpc, FargateService service, IHostedZone zone)
+    private ApplicationLoadBalancer CreateLoadBalancer(InfraSettings settings, IVpc vpc, FargateService service)
     {
         var loadBalancer = new ApplicationLoadBalancer(this, "LoadBalancer", new ApplicationLoadBalancerProps
         {
             Vpc = vpc,
-            InternetFacing = true,
-            VpcSubnets = new SubnetSelection { SubnetType = SubnetType.PUBLIC },
+            InternetFacing = false,
+            VpcSubnets = new SubnetSelection { SubnetGroupName = NetworkStack.LoadBalancerSubnets },
             SecurityGroup = CreateLoadBalancerSecurityGroup(settings, vpc),
         });
 
-        var originHost = ResourceNames.OriginHostName(settings.DomainName);
-        AddHttpsListener(loadBalancer, service, CreateOriginCertificate(settings, originHost, zone));
-
-        _ = new ARecord(this, "OriginRecord", new ARecordProps
-        {
-            Zone = zone,
-            RecordName = originHost,
-            Target = RecordTarget.FromAlias(new LoadBalancerTarget(loadBalancer)),
-        });
-
+        AddHttpListener(loadBalancer, service);
         return loadBalancer;
     }
 
     /// <summary>
-    /// Lets in HTTPS from CloudFront's own addresses only (the AWS-managed origin-facing prefix list), so
-    /// nobody can bypass CloudFront.
+    /// Lets in HTTP from CloudFront's own addresses only (the AWS-managed origin-facing prefix list, which
+    /// also covers VPC origins), so nothing else in the VPC can call the API through the load balancer.
     /// </summary>
     private SecurityGroup CreateLoadBalancerSecurityGroup(InfraSettings settings, IVpc vpc)
     {
         var securityGroup = new SecurityGroup(this, "LoadBalancerSecurityGroup", new SecurityGroupProps
         {
             Vpc = vpc,
-            Description = "HTTPS from CloudFront only",
+            Description = "HTTP from CloudFront only",
             AllowAllOutbound = false,
         });
-        securityGroup.AddIngressRule(Peer.PrefixList(settings.CloudFrontPrefixListId), Port.Tcp(443), "CloudFront origin-facing addresses");
+        securityGroup.AddIngressRule(Peer.PrefixList(settings.CloudFrontPrefixListId), Port.Tcp(80), "CloudFront origin-facing addresses");
         return securityGroup;
     }
 
-    /// <summary>
-    /// Certificate for the load balancer. CloudFront forwards the viewer's Host header, so it must cover the
-    /// main domain as well as the origin address.
-    /// </summary>
-    private Certificate CreateOriginCertificate(InfraSettings settings, string originHost, IHostedZone zone)
+    /// <summary>HTTP on 80, forwarding to the API on port 8080 and checking it through <c>/api/v1/health</c>.</summary>
+    private static void AddHttpListener(ApplicationLoadBalancer loadBalancer, FargateService service)
     {
-        return new Certificate(this, "OriginCertificate", new CertificateProps
+        var listener = loadBalancer.AddListener("Http", new BaseApplicationListenerProps
         {
-            DomainName = originHost,
-            SubjectAlternativeNames = [settings.DomainName],
-            Validation = CertificateValidation.FromDns(zone),
-        });
-    }
-
-    /// <summary>HTTPS on 443, forwarding to the API on port 8080 and checking it through <c>/api/v1/health</c>.</summary>
-    private static void AddHttpsListener(ApplicationLoadBalancer loadBalancer, FargateService service, ICertificate certificate)
-    {
-        var listener = loadBalancer.AddListener("Https", new BaseApplicationListenerProps
-        {
-            Port = 443,
-            Protocol = ApplicationProtocol.HTTPS,
-            Certificates = [ListenerCertificate.FromCertificateManager(certificate)],
-            SslPolicy = SslPolicy.RECOMMENDED_TLS,
+            Port = 80,
+            Protocol = ApplicationProtocol.HTTP,
             Open = false,
         });
 

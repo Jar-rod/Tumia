@@ -68,7 +68,18 @@ public class AppTests(SynthesizedStacks stacks)
     }
 
     [Fact]
-    public void LoadBalancer_OnlyAcceptsHttpsFromCloudFront()
+    public void LoadBalancer_IsInternalWithNoPublicAddress()
+    {
+        var template = Template.FromStack(stacks.BeforeFirstDeploy.App);
+
+        template.HasResourceProperties("AWS::ElasticLoadBalancingV2::LoadBalancer", Match.ObjectLike(new Dictionary<string, object>
+        {
+            ["Scheme"] = "internal",
+        }));
+    }
+
+    [Fact]
+    public void LoadBalancer_OnlyAcceptsTrafficFromCloudFront()
     {
         var template = SynthesizedStacks.Json(stacks.BeforeFirstDeploy.App);
 
@@ -78,7 +89,16 @@ public class AppTests(SynthesizedStacks stacks)
             .ToList();
 
         openToInternet.ShouldBeFalse();
-        cloudFrontRules.ShouldHaveSingleItem()["Properties"]!["FromPort"]!.GetValue<int>().ShouldBe(443);
+        cloudFrontRules.ShouldHaveSingleItem()["Properties"]!["FromPort"]!.GetValue<int>().ShouldBe(80);
+    }
+
+    [Fact]
+    public void Stack_HasNoCertificateOrDnsRecord_BecauseTheLoadBalancerIsPrivate()
+    {
+        var template = Template.FromStack(stacks.WithDomain.App);
+
+        template.ResourceCountIs("AWS::CertificateManager::Certificate", 0);
+        template.ResourceCountIs("AWS::Route53::RecordSet", 0);
     }
 
     [Fact]
@@ -113,18 +133,51 @@ public class AppTests(SynthesizedStacks stacks)
         bedrock["Resource"]!.ToJsonString().ShouldContain("foundation-model/example.model-v1");
     }
 
-    [Fact]
-    public void Container_SendsEmailThroughSesWithLinksToTheAppsOwnAddress()
+    private static Dictionary<string, string> ContainerEnvironment(TumiiaStacks stacks)
     {
-        var template = SynthesizedStacks.Json(stacks.WithImageAndBedrock.App);
+        var template = SynthesizedStacks.Json(stacks.App);
         var container = SynthesizedStacks.Resources(template, "AWS::ECS::TaskDefinition").Single()["Properties"]!["ContainerDefinitions"]![0]!;
 
-        var settings = container["Environment"]!.AsArray().ToDictionary(setting => setting!["Name"]!.GetValue<string>(), setting => setting!["Value"]!.ToJsonString());
+        return container["Environment"]!.AsArray().ToDictionary(setting => setting!["Name"]!.GetValue<string>(), setting => setting!["Value"]!.ToJsonString());
+    }
+
+    [Fact]
+    public void Container_WithoutADomain_SendsEmailThroughSesFromTheSenderAddress()
+    {
+        var settings = ContainerEnvironment(stacks.WithImageAndBedrock);
 
         settings["Email__Provider"].ShouldBe("\"Ses\"");
-        settings["Email__FromAddress"].ShouldBe($"\"no-reply@{SynthesizedStacks.DomainName}\"");
-        settings["App__BaseUrl"].ShouldBe($"\"https://{SynthesizedStacks.DomainName}\"");
+        settings["Email__FromAddress"].ShouldBe($"\"{SynthesizedStacks.AlertEmail}\"");
         settings["Admin__Emails"].ShouldBe("\"owner@example.co.za\"");
+    }
+
+    [Fact]
+    public void Container_WithADomain_SendsEmailFromNoReplyOnTheDomain()
+    {
+        var settings = ContainerEnvironment(stacks.WithDomain);
+
+        settings["Email__FromAddress"].ShouldBe($"\"no-reply@{SynthesizedStacks.DomainName}\"");
+    }
+
+    [Fact]
+    public void TaskRole_CanOnlySendEmailAsTheSesIdentity()
+    {
+        var statements = PolicyStatements(SynthesizedStacks.Json(stacks.BeforeFirstDeploy.App));
+
+        var sendEmail = statements.Single(statement => statement["Sid"]?.GetValue<string>() == "SendEmail");
+
+        sendEmail["Resource"]!.ToJsonString().ShouldEndWith($":identity/{SynthesizedStacks.AlertEmail}\"");
+    }
+
+    [Fact]
+    public void Container_ReadsTheAppsAddressFromTheParameterTheWebStackWrites()
+    {
+        var template = SynthesizedStacks.Json(stacks.BeforeFirstDeploy.App);
+        var container = SynthesizedStacks.Resources(template, "AWS::ECS::TaskDefinition").Single()["Properties"]!["ContainerDefinitions"]![0]!;
+
+        var appBaseUrl = container["Secrets"]!.AsArray().Single(secret => secret!["Name"]!.GetValue<string>() == "App__BaseUrl")!;
+
+        appBaseUrl["ValueFrom"]!.ToJsonString().ShouldContain("parameter/prod/tumiia/app-base-url");
     }
 
     [Fact]
@@ -136,7 +189,7 @@ public class AppTests(SynthesizedStacks stacks)
         var secretNames = container["Secrets"]!.AsArray().Select(secret => secret!["Name"]!.GetValue<string>()).ToList();
         var plainSettings = container["Environment"]!.ToJsonString();
 
-        secretNames.ShouldBe(["Database__Host", "Database__Port", "Database__Name", "Database__Username", "Database__Password", "Jwt__SigningKey", "OriginVerify__Secret"], ignoreOrder: true);
+        secretNames.ShouldBe(["App__BaseUrl", "Database__Host", "Database__Port", "Database__Name", "Database__Username", "Database__Password", "Jwt__SigningKey", "OriginVerify__Secret"], ignoreOrder: true);
         plainSettings.ShouldNotContain("Password");
         plainSettings.ShouldNotContain("Secret");
     }

@@ -7,7 +7,7 @@ namespace Tumiia.Infra.Stacks;
 
 /// <summary>
 /// The HTTPS certificate for the app's address. It lives in us-east-1 because CloudFront only accepts
-/// certificates from there. It holds no data.
+/// certificates from there. It holds no data. Only created when the app has its own domain.
 /// </summary>
 public sealed class WebCertificateStack : Stack
 {
@@ -20,13 +20,13 @@ public sealed class WebCertificateStack : Stack
     {
         var zone = PublicHostedZone.FromPublicHostedZoneAttributes(this, "Zone", new PublicHostedZoneAttributes
         {
-            HostedZoneId = settings.HostedZoneId,
-            ZoneName = settings.HostedZoneName,
+            HostedZoneId = settings.HostedZoneId!,
+            ZoneName = settings.HostedZoneName!,
         });
 
         Certificate = new Certificate(this, "Certificate", new CertificateProps
         {
-            DomainName = settings.DomainName,
+            DomainName = settings.DomainName!,
             Validation = CertificateValidation.FromDns(zone),
         });
     }

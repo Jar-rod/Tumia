@@ -6,11 +6,17 @@ namespace Tumiia.Infra.Stacks;
 
 /// <summary>
 /// The VPC across two availability zones. Fargate tasks run in public subnets with public IPs, so there is
-/// no NAT Gateway (saves about $35 a month); the database sits in isolated subnets with no internet route.
-/// S3 traffic goes through a free gateway endpoint.
+/// no NAT Gateway (saves about $35 a month). The database and the load balancer each sit in their own isolated
+/// subnets with no internet route. S3 traffic goes through a free gateway endpoint.
 /// </summary>
 public sealed class NetworkStack : Stack
 {
+    /// <summary>Name of the isolated subnets that hold the database.</summary>
+    public const string DatabaseSubnets = "database";
+
+    /// <summary>Name of the isolated subnets that hold the internal load balancer CloudFront reaches.</summary>
+    public const string LoadBalancerSubnets = "load-balancer";
+
     /// <summary>The VPC every other stack places its resources in.</summary>
     public Vpc Vpc { get; }
 
@@ -32,7 +38,8 @@ public sealed class NetworkStack : Stack
             SubnetConfiguration =
             [
                 new SubnetConfiguration { Name = "public", SubnetType = SubnetType.PUBLIC, CidrMask = 24 },
-                new SubnetConfiguration { Name = "database", SubnetType = SubnetType.PRIVATE_ISOLATED, CidrMask = 24 },
+                new SubnetConfiguration { Name = DatabaseSubnets, SubnetType = SubnetType.PRIVATE_ISOLATED, CidrMask = 24 },
+                new SubnetConfiguration { Name = LoadBalancerSubnets, SubnetType = SubnetType.PRIVATE_ISOLATED, CidrMask = 24 },
             ],
             GatewayEndpoints = new Dictionary<string, IGatewayVpcEndpointOptions>
             {

@@ -4,11 +4,15 @@ Do these once, in order, before the first run of the **Deploy** workflow. After 
 **Actions → Deploy → Run workflow**.
 
 Everything runs in **af-south-1 (Cape Town)**. The only exception is the CloudFront certificate, which
-must live in us-east-1; it holds no data.
+must live in us-east-1 and is only made when you use your own domain; it holds no data.
 
-You need: an AWS account with administrator access from your laptop (AWS CLI v2 configured), Node.js 22,
-the .NET 10 SDK, a **Route 53 public hosted zone** for your domain, and admin rights on the GitHub
-repository.
+You need: an AWS account with administrator access from your laptop (AWS CLI v2 configured, for example with
+`aws configure sso`), Node.js 22, the .NET 10 SDK, and admin rights on the GitHub repository.
+
+**A domain is optional.** Without one, users open the CloudFront address (`d1234abcd.cloudfront.net`) and
+password reset emails come from a single address you verify (`SENDER_EMAIL`). That is fine for a proof of
+concept, but email from a free-mail address (Gmail, Outlook) often lands in spam. To use your own domain, you
+need a **Route 53 public hosted zone** for it and set the three domain variables in step 8.
 
 ## 1. Enable the Cape Town region
 
@@ -24,10 +28,11 @@ aws account get-region-opt-status --region-name af-south-1   # repeat until it s
 | Setting | Example | Where it comes from |
 |---|---|---|
 | AWS account id | `123456789012` | `aws sts get-caller-identity --query Account --output text` |
-| Domain name | `app.example.co.za` | The address users will open |
-| Hosted zone name | `example.co.za` | The Route 53 zone that contains the domain |
-| Hosted zone id | `Z0123456789ABCDEFGHIJ` | Route 53 → Hosted zones |
 | Alert email | `ops@example.co.za` | Receives the dead-letter-queue alarm |
+| Sender email (no domain only) | `tumiia.noreply@gmail.com` | The address password reset emails come from. Defaults to the alert email |
+| Domain name (optional) | `app.example.co.za` | The address users will open |
+| Hosted zone name (optional) | `example.co.za` | The Route 53 zone that contains the domain |
+| Hosted zone id (optional) | `Z0123456789ABCDEFGHIJ` | Route 53 → Hosted zones |
 | CloudFront prefix list id | `pl-xxxxxxxx` | Step 3 |
 | Repository OIDC subject | `Jar-rod@121164104/Tumia@<repo id>` | Step 4 |
 
@@ -55,9 +60,10 @@ The owner id is `121164104`. If the role cannot be assumed later ("Not authorize
 sts:AssumeRoleWithWebIdentity"), check the claim the workflow actually sends with
 [actions-oidc-debugger](https://github.com/github/actions-oidc-debugger).
 
-## 5. Bootstrap CDK in both regions
+## 5. Bootstrap CDK
 
-Run this from the **repo root** (not `infra/`), so CDK does not try to build the app yet.
+Run this from the **repo root** (not `infra/`), so CDK does not try to build the app yet. us-east-1 is only
+needed with your own domain (for the CloudFront certificate); bootstrapping it anyway costs nothing.
 
 ```bash
 npx aws-cdk@2.1147.0 bootstrap aws://<ACCOUNT_ID>/af-south-1 aws://<ACCOUNT_ID>/us-east-1
@@ -78,13 +84,13 @@ Nobody needs to create or see it.
 
 ## 7. Deploy the GitHub deploy role from your laptop
 
-From `infra/`, with your settings from step 2:
+From `infra/`, with your settings from step 2. With your own domain, add
+`-c domainName=<DOMAIN> -c hostedZoneName=<ZONE_NAME> -c hostedZoneId=<ZONE_ID>`.
 
 ```bash
 cd infra
 npx aws-cdk@2.1147.0 deploy prod-tumiia-github-oidc \
-  -c account=<ACCOUNT_ID> -c domainName=<DOMAIN> -c hostedZoneName=<ZONE_NAME> -c hostedZoneId=<ZONE_ID> \
-  -c githubRepo=<OIDC_SUBJECT> -c alertEmail=<EMAIL> -c cloudFrontPrefixListId=<PREFIX_LIST_ID>
+  -c account=<ACCOUNT_ID> -c githubRepo=<OIDC_SUBJECT> -c alertEmail=<EMAIL> -c cloudFrontPrefixListId=<PREFIX_LIST_ID>
 ```
 
 Copy the `DeployRoleArn` from the output.
@@ -101,12 +107,12 @@ Copy the `DeployRoleArn` from the output.
    |---|---|
    | `AWS_ACCOUNT_ID` | your account id |
    | `AWS_DEPLOY_ROLE_ARN` | the `DeployRoleArn` from step 7 |
-   | `DOMAIN_NAME` | e.g. `app.example.co.za` |
-   | `HOSTED_ZONE_NAME` | e.g. `example.co.za` |
-   | `HOSTED_ZONE_ID` | the zone id |
    | `REPO_OIDC_SUBJECT` | from step 4 |
    | `ALERT_EMAIL` | the alert address |
    | `CLOUDFRONT_PREFIX_LIST_ID` | from step 3 |
+
+   Without a domain, optionally `SENDER_EMAIL` (defaults to `ALERT_EMAIL`). With your own domain, also
+   `DOMAIN_NAME` (e.g. `app.example.co.za`), `HOSTED_ZONE_ID` and `HOSTED_ZONE_NAME` (e.g. `example.co.za`).
 
    Optional in the same environment: `ADMIN_EMAILS`, a comma-separated list of emails that get the Admin role when
    they register or sign in (needed for taxonomy settings and the feedback export). Run `infra` after changing it.
@@ -120,7 +126,16 @@ Copy the `DeployRoleArn` from the output.
 **Actions → Deploy → Run workflow → target: `infra`.** The first run takes 20 to 30 minutes (RDS, certificates
 and CloudFront are slow to create). The API service is created with **zero** tasks, because no image exists yet.
 
-Then confirm the SNS subscription: AWS emails the alert address a link to click.
+Then:
+
+- Confirm the SNS subscription: AWS emails the alert address a link to click.
+- Without a domain: SES emails the sender address a verification link. Click it, or password reset emails
+  cannot be sent.
+- Find the app's address in the `prod-tumiia-web` stack outputs (`DistributionDomainName`), or:
+
+  ```bash
+  aws ssm get-parameter --region af-south-1 --name /prod/tumiia/app-base-url --query Parameter.Value --output text
+  ```
 
 ## 10. First backend deploy
 
@@ -129,10 +144,11 @@ one-off task, and starts the service with one task.
 
 ## 11. Email (SES)
 
-The domain identity verifies itself once its DKIM records (created in Route 53 by the email stack) are live:
+With a domain, the domain identity verifies itself once its DKIM records (created in Route 53 by the email
+stack) are live. Without one, the sender address is verified when you click the link in step 9. Check with:
 
 ```bash
-aws sesv2 get-email-identity --region af-south-1 --email-identity <DOMAIN> --query VerifiedForSendingStatus
+aws sesv2 get-email-identity --region af-south-1 --email-identity <DOMAIN_OR_SENDER_EMAIL> --query VerifiedForSendingStatus
 ```
 
 **New accounts start in the SES sandbox:** email can only go to addresses you have verified
@@ -160,3 +176,12 @@ Once `apps/web` exists, **Run workflow → target: `frontend`** (or `auto`).
   `BEDROCK_MODEL_ID`) as `prod` variables and run `infra`. Bedrock processes data **outside South Africa**.
 - The **Fargate tasks run in public subnets with public IPs** (no NAT Gateway). Their security group only
   accepts traffic from the load balancer.
+- The **load balancer is internal**, in its own isolated subnets, with no public address. CloudFront reaches it
+  through a **CloudFront VPC origin** over HTTP inside AWS, and still sends the `X-Origin-Verify` header.
+- **The app learns its own address** (for links in emails) from the SSM parameter `/prod/tumiia/app-base-url`,
+  which the web stack writes.
+- **Without a domain**, viewers connect with CloudFront's default certificate, whose TLS policy AWS fixes (it
+  still allows TLS 1.0 for old clients); the documents bucket's CORS rule allows any `*.cloudfront.net` page,
+  though every upload and download still needs a pre-signed URL from the API.
+- **Adding a domain later** is a deploy with target `infra` after setting the three domain variables. The app's
+  address changes, so everyone has to sign in again.
