@@ -51,6 +51,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Manual **Start or stop AWS** workflow (`.github/workflows/environment.yml`, script `.github/scripts/environment.sh`): `stop` scales the API to 0 tasks and stops the database, `start` starts the database and runs 1 API task again, `status` shows both. Stopped, the environment costs about US$0.75 a day (the load balancer cannot be stopped). Deploys start a stopped database first.
 - The deploy role may describe databases, and stop or start only those tagged `project=tumiia` and `env=<environment>`. The data stack outputs `DatabaseInstanceId`.
 
+- Optional `ENABLE_SWAGGER` deploy variable: when `true`, the API in AWS serves Swagger UI at `/swagger` and the OpenAPI documents at `/openapi/`, and CloudFront routes `/swagger*` and `/openapi/*` to the API (uncached, like `/api/*`). Off by default.
+
 ### Changed
 - **A custom domain is now optional for AWS.** Without `DOMAIN_NAME` (and `HOSTED_ZONE_ID`, `HOSTED_ZONE_NAME`), users open the CloudFront address (`*.cloudfront.net`), no certificate or Route 53 records are made, and password reset emails come from a single SES-verified address: the new optional `SENDER_EMAIL` deploy variable, defaulting to `ALERT_EMAIL`. Setting the domain variables later and deploying `infra` switches to the domain.
 - The API's load balancer is now **internal** (no public address), in new isolated `load-balancer` subnets, with an HTTP listener on port 80. CloudFront reaches it through a **CloudFront VPC origin**, so it no longer needs the `origin.<domain>` certificate and DNS record. It still only accepts CloudFront's prefix list, and CloudFront still sends `X-Origin-Verify`.

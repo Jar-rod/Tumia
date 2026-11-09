@@ -56,6 +56,12 @@ public sealed record InfraSettings
     /// <summary>The image tag the API service runs. Null before the first backend deploy, which keeps the service at zero tasks.</summary>
     public string? ImageTag { get; init; }
 
+    /// <summary>
+    /// When true, the API serves Swagger UI at <c>/swagger</c> and the OpenAPI documents at <c>/openapi/</c>, through
+    /// CloudFront. Off by default: it publishes the API's description to anyone with the address.
+    /// </summary>
+    public bool EnableSwagger { get; init; }
+
     /// <summary>When true, the API's task role may call Amazon Bedrock. Off by default (Bedrock runs outside South Africa).</summary>
     public bool EnableBedrock { get; init; }
 
@@ -83,7 +89,8 @@ public sealed record InfraSettings
             CloudFrontPrefixListId = Required(node, "cloudFrontPrefixListId"),
             AdminEmails = Optional(node, "adminEmails"),
             ImageTag = Optional(node, "imageTag"),
-            EnableBedrock = string.Equals(Optional(node, "enableBedrock"), "true", StringComparison.OrdinalIgnoreCase),
+            EnableSwagger = IsTrue(node, "enableSwagger"),
+            EnableBedrock = IsTrue(node, "enableBedrock"),
             BedrockInferenceProfileArn = Optional(node, "bedrockInferenceProfileArn"),
             BedrockModelId = Optional(node, "bedrockModelId"),
         };
@@ -122,6 +129,11 @@ public sealed record InfraSettings
     {
         return Optional(node, key)
             ?? throw new ArgumentException($"Missing CDK context '{key}'. Pass it with: -c {key}=<value>. See docs/deploy-setup.md.");
+    }
+
+    private static bool IsTrue(Node node, string key)
+    {
+        return string.Equals(Optional(node, key), "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? Optional(Node node, string key)

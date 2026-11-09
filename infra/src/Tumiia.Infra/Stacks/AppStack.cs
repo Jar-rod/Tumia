@@ -248,7 +248,7 @@ public sealed class AppStack : Stack
         return new Dictionary<string, string>
         {
             ["ASPNETCORE_ENVIRONMENT"] = "Production",
-            ["Swagger__Enabled"] = "false",
+            ["Swagger__Enabled"] = settings.EnableSwagger ? "true" : "false",
             ["Aws__Region"] = InfraSettings.Region,
             ["Admin__Emails"] = settings.AdminEmails ?? string.Empty,
             ["Email__Provider"] = "Ses",

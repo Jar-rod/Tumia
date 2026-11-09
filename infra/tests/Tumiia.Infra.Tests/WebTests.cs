@@ -21,7 +21,7 @@ public class WebTests(SynthesizedStacks stacks)
         {
             ["DistributionConfig"] = Match.ObjectLike(new Dictionary<string, object>
             {
-                ["CacheBehaviors"] = new object[]
+                ["CacheBehaviors"] = Match.ArrayWith(new object[]
                 {
                     Match.ObjectLike(new Dictionary<string, object>
                     {
@@ -30,9 +30,22 @@ public class WebTests(SynthesizedStacks stacks)
                         ["CachePolicyId"] = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
                         ["OriginRequestPolicyId"] = "33f36d7e-f396-46d9-90e0-52428a34d9dc",
                     }),
-                },
+                }),
             }),
         }));
+    }
+
+    [Fact]
+    public void SwaggerAndOpenApiPaths_GoToTheApiLikeApiPaths()
+    {
+        var behaviours = DistributionConfig()["CacheBehaviors"]!.AsArray();
+        var api = behaviours.Single(behaviour => behaviour!["PathPattern"]!.GetValue<string>() == "/api/*")!;
+
+        var swaggerPaths = behaviours.Where(behaviour => behaviour!["PathPattern"]!.GetValue<string>() is "/swagger*" or "/openapi/*").ToList();
+
+        swaggerPaths.Count.ShouldBe(2);
+        swaggerPaths.ShouldAllBe(behaviour => behaviour!["TargetOriginId"]!.ToJsonString() == api["TargetOriginId"]!.ToJsonString());
+        swaggerPaths.ShouldAllBe(behaviour => behaviour!["CachePolicyId"]!.GetValue<string>() == api["CachePolicyId"]!.GetValue<string>());
     }
 
     [Fact]
@@ -49,7 +62,7 @@ public class WebTests(SynthesizedStacks stacks)
         var config = DistributionConfig();
 
         config["DefaultCacheBehavior"]!["FunctionAssociations"].ShouldNotBeNull();
-        config["CacheBehaviors"]![0]!["FunctionAssociations"].ShouldBeNull();
+        config["CacheBehaviors"]!.AsArray().ShouldAllBe(behaviour => behaviour!["FunctionAssociations"] == null);
     }
 
     [Fact]

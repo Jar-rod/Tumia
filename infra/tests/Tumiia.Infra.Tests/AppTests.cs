@@ -152,6 +152,22 @@ public class AppTests(SynthesizedStacks stacks)
     }
 
     [Fact]
+    public void Container_ByDefault_HasSwaggerOff()
+    {
+        var settings = ContainerEnvironment(stacks.BeforeFirstDeploy);
+
+        settings["Swagger__Enabled"].ShouldBe("\"false\"");
+    }
+
+    [Fact]
+    public void Container_WhenSwaggerIsEnabled_ServesSwagger()
+    {
+        var settings = ContainerEnvironment(stacks.WithImageAndBedrock);
+
+        settings["Swagger__Enabled"].ShouldBe("\"true\"");
+    }
+
+    [Fact]
     public void Container_WithADomain_SendsEmailFromNoReplyOnTheDomain()
     {
         var settings = ContainerEnvironment(stacks.WithDomain);
