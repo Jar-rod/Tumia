@@ -1,6 +1,6 @@
 # Frontend integration
 
-How the React app (`apps/web`) talks to the API. This file grows phase by phase; this part covers signing in.
+How the React app (`apps/web`) talks to the API. This file grows phase by phase; it covers signing in, uploading and pasting, and reading the analysis.
 The full contract is in `services/api/src/Tumiia.Api/openapi/v1.json`. Generate the typed client from it, and
 never edit the generated client by hand.
 
@@ -76,6 +76,50 @@ new password and calls `reset-password` with the values from the address. The li
   (anything else) the original. Open it in a new tab: the app's content security policy does not allow embedding
   it in a frame.
 - A document or project the user cannot access answers 404, exactly like one that does not exist.
+
+## Pasting text or a message
+
+`POST /api/v1/projects/{projectId}/documents/text` with `{ text, title? }` adds pasted text (a copied WhatsApp
+message, an instruction, notes) to the vault. The text is stored unchanged as a `.txt` file named after `title`
+("Site instruction" becomes `Site instruction.txt`; without a title, `Pasted text 2026-11-10 0930.txt`) and is
+analysed like any upload. There is no S3 step.
+
+- **201** with the new `DocumentResponse` (`captureSource: "paste"`, `status: "New"`).
+- **200** with the existing document when exactly this text is already in the vault.
+- **400** with `errors.text` ("Paste some text first.") when the text is empty or over 200,000 characters.
+
+## After the upload: the analysis
+
+Each document is analysed in the background within seconds. Poll `GET /api/v1/documents/{id}` every 3 seconds
+while `document.status` is `New` or `Processing`, and stop when it is anything else:
+
+| `document.status` | Meaning | What to show |
+|---|---|---|
+| `AutoFiled` | Sure, and not a payment, contract or legal record. Filed. | "Quote · Bricks · R18,450 — Filed ✓" with Undo / Change |
+| `AwaitingConfirmation` | Fairly sure, or a payment, contract or legal record (always asked, however sure) | "Looks like a quote from ABC Supplies for bricks — R18,450. Right?" |
+| `NeedsReview` | Not sure, or the file could not be read | "I'm not sure about this one." with chips |
+| `Failed` | The analysis gave up after 3 tries; `failureReason` says why | Treat like Needs Review |
+
+Once analysed, the response has an `analysis` object (null before). It is the AI's proposal and never changes;
+what the user confirms is stored separately later.
+
+- `proposedCategory` (key, e.g. `commercial_quote`) and `proposedCategoryName` ("Quote"), plus `runnerUpCategory`.
+- `summary`: one plain line built from the facts found, e.g. "Quote from ABC Supplies for Bricks — R18,450.00,
+  12 Oct 2026."
+- `classificationConfidence` (0 to 1) and `band` (`High`, `Medium`, `Low`). **Show confidence as words, never as
+  a number**: High "Pretty sure", Medium "Fairly sure", Low "Not sure".
+- `fields`: one entry per fact. The first is always `document_type`. Others, when found: `party`, `document_date`
+  (yyyy-MM-dd), `amount` ("18450.00"), `currency` (ISO code: ZAR, USD, EUR, GBP, ZWG, RWF, KES), `subject` (one of
+  the category's chips), `work_package`, `site_reference`, `location` (GPS "lat, long" from a photo), `language`
+  (ISO 639-1), and any extra fields a category defines. A fact that was not found is simply absent; nothing is
+  guessed. Each field has its own `confidence` and `band`, so one doubtful field (say, the date) can be shown as
+  "not sure" without blocking the rest.
+- Each field's `evidence` says where it came from: `source` (`bedrock` when the AI read it, `text`, `exif`,
+  `classification`), `page`, `line` (typed text only) and a short `snippet` quoting the words. Use it to highlight
+  the fact next to the source preview. A snippet ending "(not found in the document's text)" means the AI's quote
+  could not be found, so treat that fact as a guess.
+- `warnings`: plain sentences worth showing on a Needs Review card ("Old Word (.doc) files can't be read yet...").
+- `signals` holds the numbers behind the confidence; it is for debugging, not for display.
 
 ## Rate limits
 

@@ -5,8 +5,8 @@
 # Usage: cdk.sh <diff|deploy>   (run from the infra/ folder)
 # Required: ENV_NAME, AWS_ACCOUNT_ID, REPO_OIDC_SUBJECT, ALERT_EMAIL, CLOUDFRONT_PREFIX_LIST_ID
 # Optional: ENABLE_SWAGGER ("true" serves Swagger UI at /swagger), DOMAIN_NAME with HOSTED_ZONE_ID and HOSTED_ZONE_NAME (without them the app uses its CloudFront
-#           address), SENDER_EMAIL (used when there is no domain), IMAGE_TAG, ADMIN_EMAILS, ENABLE_BEDROCK,
-#           BEDROCK_INFERENCE_PROFILE_ARN, BEDROCK_MODEL_ID
+#           address), SENDER_EMAIL (used when there is no domain), IMAGE_TAG, ADMIN_EMAILS, ENABLE_BEDROCK
+#           ("false" stops sending documents to Bedrock; on by default), BEDROCK_MODEL_ID (default anthropic.claude-haiku-5-5)
 set -euo pipefail
 
 command="${1:?Pass diff or deploy}"
@@ -47,12 +47,13 @@ if [ "${ENABLE_SWAGGER:-false}" = "true" ]; then
   context+=(-c "enableSwagger=true")
 fi
 
-if [ "${ENABLE_BEDROCK:-false}" = "true" ]; then
-  context+=(
-    -c "enableBedrock=true"
-    -c "bedrockInferenceProfileArn=${BEDROCK_INFERENCE_PROFILE_ARN:?}"
-    -c "bedrockModelId=${BEDROCK_MODEL_ID:?}"
-  )
+# Documents are read by Claude on Amazon Bedrock (processed outside South Africa) unless ENABLE_BEDROCK=false.
+if [ "${ENABLE_BEDROCK:-true}" = "true" ]; then
+  context+=(-c "enableBedrock=true")
+fi
+
+if [ -n "${BEDROCK_MODEL_ID:-}" ]; then
+  context+=(-c "bedrockModelId=$BEDROCK_MODEL_ID")
 fi
 
 case "$command" in

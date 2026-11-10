@@ -127,7 +127,7 @@ public sealed class AppStack : Stack
 
         if (settings.EnableBedrock)
         {
-            AddBedrockPermission(role, settings);
+            AddBedrockPermission(role);
         }
 
         return role;
@@ -158,20 +158,18 @@ public sealed class AppStack : Stack
     }
 
     /// <summary>
-    /// Bedrock's global inference profile can run the model in any region, so the model ARN uses "*" for the
-    /// region. This processes data outside South Africa, which is why it is off unless enableBedrock=true.
+    /// Claude in Amazon Bedrock is called through the Bedrock Messages API endpoint (<c>bedrock-mantle</c>), which
+    /// authorises <c>bedrock-mantle:CreateInference</c>. The statement allows only that one action; the model is
+    /// chosen by the app's configuration. From af-south-1 the global endpoint runs the model outside South Africa,
+    /// which is why it is off unless enableBedrock=true.
     /// </summary>
-    private static void AddBedrockPermission(Role role, InfraSettings settings)
+    private static void AddBedrockPermission(Role role)
     {
         role.AddToPolicy(new PolicyStatement(new PolicyStatementProps
         {
             Sid = "InvokeBedrockModel",
-            Actions = ["bedrock:InvokeModel"],
-            Resources =
-            [
-                settings.BedrockInferenceProfileArn!,
-                $"arn:aws:bedrock:*::foundation-model/{settings.BedrockModelId}",
-            ],
+            Actions = ["bedrock-mantle:CreateInference"],
+            Resources = ["*"],
         }));
     }
 
@@ -255,6 +253,9 @@ public sealed class AppStack : Stack
             ["Email__FromAddress"] = settings.EmailFromAddress,
             ["Storage__DocumentsBucket"] = data.DocumentsBucket.BucketName,
             ["Queues__DocumentAnalysisUrl"] = messaging.Queue.QueueUrl,
+            ["Bedrock__Enabled"] = settings.EnableBedrock ? "true" : "false",
+            ["Bedrock__Region"] = InfraSettings.Region,
+            ["Bedrock__ModelId"] = settings.BedrockModelId,
         };
     }
 

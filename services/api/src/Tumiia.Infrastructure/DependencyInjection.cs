@@ -1,3 +1,5 @@
+using Anthropic;
+using Anthropic.Bedrock;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -6,11 +8,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Tumiia.Application.Analysis;
 using Tumiia.Application.Auth;
 using Tumiia.Application.Documents;
 using Tumiia.Application.Projects;
 using Tumiia.Domain.Email;
 using Tumiia.Domain.Storage;
+using Tumiia.Infrastructure.Analysis;
+using Tumiia.Infrastructure.Analysis.Bedrock;
+using Tumiia.Infrastructure.Analysis.Reading;
 using Tumiia.Infrastructure.Aws;
 using Tumiia.Infrastructure.Audit;
 using Tumiia.Infrastructure.Email;
@@ -27,8 +33,8 @@ public static class DependencyInjection
     public const string ConnectionStringName = "Tumiia";
 
     /// <summary>
-    /// Adds the database, ASP.NET Core Identity, access tokens, the stores behind the use cases, AWS (S3, SQS, SES)
-    /// and email.
+    /// Adds the database, ASP.NET Core Identity, access tokens, the stores behind the use cases, AWS (S3, SQS, SES),
+    /// email and the document analysis.
     /// The connection string is read when the database is first used, so the app can still start (for example
     /// to generate the OpenAPI file) without one. See <see cref="DatabaseConnectionString"/> for where it comes from.
     /// </summary>
@@ -40,12 +46,15 @@ public static class DependencyInjection
         AddAccessTokens(services, configuration, environment);
         AddAws(services, configuration);
         AddEmail(services, configuration);
+        AddAnalysis(services, configuration);
 
         services.AddScoped<IUserAccounts, IdentityUserAccounts>();
         services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
         services.AddScoped<IAuditLog, EfAuditLog>();
         services.AddScoped<IProjectStore, EfProjectStore>();
         services.AddScoped<IDocumentStore, EfDocumentStore>();
+        services.AddScoped<IDocumentAnalysisStore, EfDocumentAnalysisStore>();
+        services.AddScoped<ITaxonomyStore, EfTaxonomyStore>();
         return services;
     }
 
@@ -151,6 +160,39 @@ public static class DependencyInjection
         services.AddSingleton(provider => AwsClients.CreateSqs(provider.GetRequiredService<IOptions<AwsSettings>>().Value));
         services.AddSingleton<IFileStore, S3FileStore>();
         services.AddSingleton<IDocumentQueue, SqsDocumentQueue>();
+    }
+
+    /// <summary>
+    /// The analysis: the local text readers, the hosted AI (Claude on Amazon Bedrock, when <c>Bedrock:Enabled</c> is
+    /// true; otherwise the keyword rules decide), and the background worker that reads the queue. The worker is not
+    /// started for the build's OpenAPI generation.
+    /// </summary>
+    private static void AddAnalysis(IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<AnalysisSettings>(configuration.GetSection(AnalysisSettings.SectionName));
+        services.AddSingleton<ITextReader, DocumentTextReader>();
+        services.AddSingleton<AnalysisMessageHandler>();
+        AddHostedAnalyser(services, configuration);
+        if (!BuildTimeDocumentGeneration.IsRunning)
+        {
+            services.AddHostedService<DocumentAnalysisWorker>();
+        }
+    }
+
+    // The Mantle client signs each call with the default AWS credentials (the ECS task role in AWS).
+    private static void AddHostedAnalyser(IServiceCollection services, IConfiguration configuration)
+    {
+        var section = configuration.GetSection(BedrockSettings.SectionName);
+        services.Configure<BedrockSettings>(section);
+        var settings = section.Get<BedrockSettings>() ?? new BedrockSettings();
+        if (!settings.Enabled)
+        {
+            services.AddSingleton<IHostedDocumentAnalyser, NoHostedAnalyser>();
+            return;
+        }
+
+        services.AddSingleton<IAnthropicClient>(_ => new AnthropicBedrockMantleClient(new MantleAwsClientOptions { AwsRegion = settings.Region }));
+        services.AddSingleton<IHostedDocumentAnalyser, BedrockDocumentAnalyser>();
     }
 
     /// <summary>SES when <c>Email:Provider</c> is "Ses" (as in AWS); otherwise the local file-writing sender.</summary>

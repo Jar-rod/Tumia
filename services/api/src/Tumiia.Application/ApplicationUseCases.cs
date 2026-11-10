@@ -1,3 +1,4 @@
+using Tumiia.Application.Analysis;
 using Tumiia.Application.Auth;
 using Tumiia.Application.Documents;
 using Tumiia.Application.Projects;
@@ -27,5 +28,8 @@ public static class ApplicationUseCases
         typeof(ListDocuments),
         typeof(GetDocument),
         typeof(GetDocumentSourceUrl),
+        typeof(CapturePastedText),
+        typeof(AnalyseDocument),
+        typeof(FailDocumentAnalysis),
     ];
 }

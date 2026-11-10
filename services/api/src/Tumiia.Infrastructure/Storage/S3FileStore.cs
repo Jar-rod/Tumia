@@ -47,6 +47,29 @@ public sealed class S3FileStore(IAmazonS3 s3, IOptions<StorageSettings> storage,
         }
     }
 
+    /// <summary>Downloads the whole object. Files are at most 50 MB, so they are read into memory.</summary>
+    public async Task<byte[]> DownloadAsync(string storageKey, CancellationToken cancellationToken)
+    {
+        using var response = await s3.GetObjectAsync(storage.Value.DocumentsBucket, storageKey, cancellationToken);
+        using var buffer = new MemoryStream();
+        await response.ResponseStream.CopyToAsync(buffer, cancellationToken);
+        return buffer.ToArray();
+    }
+
+    /// <summary>Stores bytes the API made itself, such as pasted text.</summary>
+    public async Task UploadAsync(string storageKey, byte[] content, string contentType, CancellationToken cancellationToken)
+    {
+        using var body = new MemoryStream(content);
+        var request = new PutObjectRequest
+        {
+            BucketName = storage.Value.DocumentsBucket,
+            Key = storageKey,
+            InputStream = body,
+            ContentType = contentType,
+        };
+        await s3.PutObjectAsync(request, cancellationToken);
+    }
+
     /// <summary>
     /// Builds the header value with both a plain <c>filename</c> and an encoded <c>filename*</c>, so names with
     /// spaces, quotes or non-English letters come out right in every browser.

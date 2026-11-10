@@ -5,8 +5,7 @@
 #
 # Stages:
 #   build   - compiles the API and the EF Core migrations bundle (/app/efbundle)
-#   model   - downloads the pinned sentence-embedding model and checks its SHA-256
-#   runtime - the small image that runs in AWS, with Tesseract OCR installed
+#   runtime - the small image that runs in AWS (documents are read by Claude on Amazon Bedrock, not in the image)
 
 # ---------- build ----------
 # Runs on the build machine's own CPU (no emulation) and cross-compiles for the target CPU.
@@ -35,31 +34,12 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then RID=linux-x64; else RID="linux-$TARGETA
       --configuration Release --target-runtime "$RID" --self-contained \
       --output /app/efbundle
 
-# ---------- model ----------
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS model
-# sentence-transformers/all-MiniLM-L6-v2 (Apache-2.0), pinned to one revision so it can never change underneath us.
-ARG MODEL_REVISION=1110a243fdf4706b3f48f1d95db1a4f5529b4d41
-ARG MODEL_SHA256=6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452
-ARG VOCAB_SHA256=07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3
-WORKDIR /models
-RUN base="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/$MODEL_REVISION" \
- && curl -fsSL --retry 3 -o model.onnx "$base/onnx/model.onnx" \
- && curl -fsSL --retry 3 -o vocab.txt "$base/vocab.txt" \
- && echo "$MODEL_SHA256  model.onnx" | sha256sum -c - \
- && echo "$VOCAB_SHA256  vocab.txt" | sha256sum -c -
-
 # ---------- runtime ----------
 # .NET 10's runtime images are Ubuntu 24.04 LTS ("noble"); there is no stable Debian variant.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 
-# Tesseract 5 for OCR, with English language data.
-RUN apt-get update \
- && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
- && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 COPY --from=build /app .
-COPY --from=model /models /app/models/all-MiniLM-L6-v2
 COPY --chmod=755 docker/healthcheck.sh /app/healthcheck.sh
 
 # Run as the image's built-in non-root "app" user.

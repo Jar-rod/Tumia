@@ -73,4 +73,21 @@ public class ApplicationSetupTests
         rules.MaxFileSizeMb.ShouldBe(10);
         rules.MaxFilesPerRequest.ShouldBe(50);
     }
+
+    [Fact]
+    public void ReadConfidenceWeights_WhenSomeWeightsAreSet_KeepsTheDefaultsForTheRest()
+    {
+        var configuration = Configuration(new() { ["Analysis:Weights:Agreement"] = "0.25" });
+
+        var weights = ApplicationSetup.ReadConfidenceWeights(configuration);
+
+        weights.Agreement.ShouldBe(0.25);
+        weights.WinnerProbability.ShouldBe(0.30);
+    }
+
+    [Fact]
+    public void ReadConfidenceWeights_WhenNoneAreSet_UsesTheBuildPlanDefaults()
+    {
+        ApplicationSetup.ReadConfidenceWeights(Configuration(new())).ShouldBe(new Tumiia.Domain.Analysis.ConfidenceWeights());
+    }
 }

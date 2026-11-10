@@ -62,14 +62,18 @@ public sealed record InfraSettings
     /// </summary>
     public bool EnableSwagger { get; init; }
 
-    /// <summary>When true, the API's task role may call Amazon Bedrock. Off by default (Bedrock runs outside South Africa).</summary>
+    /// <summary>The Bedrock model that reads documents unless <c>bedrockModelId</c> says otherwise.</summary>
+    public const string DefaultBedrockModelId = "anthropic.claude-haiku-5-5";
+
+    /// <summary>
+    /// When true, the API reads and classifies documents with Claude on Amazon Bedrock, and its task role may call it.
+    /// Off when not set. From af-south-1, Bedrock serves Claude only through its global endpoint, so documents are
+    /// processed outside South Africa.
+    /// </summary>
     public bool EnableBedrock { get; init; }
 
-    /// <summary>ARN of the Bedrock inference profile the API may call. Required when <see cref="EnableBedrock"/> is true.</summary>
-    public string? BedrockInferenceProfileArn { get; init; }
-
-    /// <summary>Bedrock model id behind the inference profile, for example <c>anthropic.claude-...</c>. Required with Bedrock.</summary>
-    public string? BedrockModelId { get; init; }
+    /// <summary>The Bedrock model id, such as <c>anthropic.claude-haiku-5-5</c> (the default).</summary>
+    public string BedrockModelId { get; init; } = DefaultBedrockModelId;
 
     /// <summary>Reads the settings from CDK context and stops with a clear message when a required one is missing.</summary>
     public static InfraSettings FromContext(Node node)
@@ -91,12 +95,10 @@ public sealed record InfraSettings
             ImageTag = Optional(node, "imageTag"),
             EnableSwagger = IsTrue(node, "enableSwagger"),
             EnableBedrock = IsTrue(node, "enableBedrock"),
-            BedrockInferenceProfileArn = Optional(node, "bedrockInferenceProfileArn"),
-            BedrockModelId = Optional(node, "bedrockModelId"),
+            BedrockModelId = Optional(node, "bedrockModelId") ?? DefaultBedrockModelId,
         };
 
         settings.CheckDomainSettings();
-        settings.CheckBedrockSettings();
         return settings;
     }
 
@@ -114,14 +116,6 @@ public sealed record InfraSettings
         if (HasDomain && HostedZoneId is null)
         {
             throw new ArgumentException("domainName also needs -c hostedZoneId=... (the Route 53 zone that holds it).");
-        }
-    }
-
-    private void CheckBedrockSettings()
-    {
-        if (EnableBedrock && (BedrockInferenceProfileArn is null || BedrockModelId is null))
-        {
-            throw new ArgumentException("enableBedrock=true also needs -c bedrockInferenceProfileArn=... and -c bedrockModelId=...");
         }
     }
 

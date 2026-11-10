@@ -119,18 +119,34 @@ public class AppTests(SynthesizedStacks stacks)
     {
         var policies = SynthesizedStacks.Json(stacks.BeforeFirstDeploy.App).ToJsonString();
 
+        policies.ShouldNotContain("bedrock-mantle:");
         policies.ShouldNotContain("bedrock:");
     }
 
     [Fact]
-    public void TaskRole_WhenBedrockIsEnabled_CanInvokeOnlyTheConfiguredModel()
+    public void TaskRole_WhenBedrockIsEnabled_MayOnlyCreateInferenceOnTheBedrockMessagesEndpoint()
     {
         var statements = PolicyStatements(SynthesizedStacks.Json(stacks.WithImageAndBedrock.App));
 
         var bedrock = statements.Single(statement => statement["Sid"]?.GetValue<string>() == "InvokeBedrockModel");
 
-        bedrock["Action"]!.GetValue<string>().ShouldBe("bedrock:InvokeModel");
-        bedrock["Resource"]!.ToJsonString().ShouldContain("foundation-model/example.model-v1");
+        bedrock["Action"]!.GetValue<string>().ShouldBe("bedrock-mantle:CreateInference");
+    }
+
+    [Fact]
+    public void Container_WhenBedrockIsEnabled_ReadsDocumentsWithTheConfiguredModel()
+    {
+        var settings = ContainerEnvironment(stacks.WithImageAndBedrock);
+
+        settings["Bedrock__Enabled"].ShouldBe("\"true\"");
+        settings["Bedrock__Region"].ShouldBe("\"af-south-1\"");
+        settings["Bedrock__ModelId"].ShouldBe("\"anthropic.example-model\"");
+    }
+
+    [Fact]
+    public void Container_ByDefault_DoesNotSendDocumentsToBedrock()
+    {
+        ContainerEnvironment(stacks.BeforeFirstDeploy)["Bedrock__Enabled"].ShouldBe("\"false\"");
     }
 
     private static Dictionary<string, string> ContainerEnvironment(TumiiaStacks stacks)

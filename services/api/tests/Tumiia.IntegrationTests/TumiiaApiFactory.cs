@@ -17,7 +17,8 @@ namespace Tumiia.IntegrationTests;
 /// Starts the real API in memory, backed by a real PostgreSQL 17 database and a LocalStack (S3 and SQS) container,
 /// with S3 checking pre-signed URL signatures like real S3 does.
 /// The app runs as Development, so it applies the migrations to the container on start-up.
-/// Rate limits are raised so tests do not trip each other; the rate-limit test puts them back.
+/// Rate limits are raised so tests do not trip each other; the rate-limit test puts them back. The analysis worker
+/// is off; tests call the analysis themselves.
 /// </summary>
 public sealed class TumiiaApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -72,6 +73,8 @@ public sealed class TumiiaApiFactory : WebApplicationFactory<Program>, IAsyncLif
         builder.UseSetting("RateLimiting:Auth:PermitLimit", "10000");
         builder.UseSetting("RateLimiting:Default:PermitLimit", "100000");
         builder.UseSetting("Admin:Emails", AdminEmail);
+        // The tests read the queue themselves and run the analysis directly, so the background worker stays off.
+        builder.UseSetting("Analysis:WorkerEnabled", "false");
         builder.ConfigureTestServices(services => services.AddSingleton<IEmailSender>(Emails));
     }
 

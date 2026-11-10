@@ -29,6 +29,7 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(document => document.DocumentTypeConfirmed).HasMaxLength(100);
         builder.Property(document => document.SubjectConfirmed).HasMaxLength(200);
         builder.Property(document => document.ConfirmedFields).HasColumnType("jsonb");
+        builder.Property(document => document.FailureReason).HasMaxLength(500);
 
         builder.HasIndex(document => document.StorageKey).IsUnique();
         builder.HasIndex(document => new { document.ProjectId, document.Sha256 }).IsUnique();
@@ -37,12 +38,13 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.HasOne<ApplicationUser>().WithMany().HasForeignKey(document => document.UploadedBy).OnDelete(DeleteBehavior.Restrict);
     }
 
-    /// <summary>The capture source as the v1.1 record writes it: <c>drag_drop</c>, <c>file_picker</c>, <c>mobile_upload</c>.</summary>
+    /// <summary>The capture source as the v1.1 record writes it: <c>drag_drop</c>, <c>file_picker</c>, <c>mobile_upload</c>, <c>paste</c>.</summary>
     public static string ToText(CaptureSource source) => source switch
     {
         CaptureSource.DragDrop => "drag_drop",
         CaptureSource.FilePicker => "file_picker",
         CaptureSource.MobileUpload => "mobile_upload",
+        CaptureSource.Paste => "paste",
         _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
     };
 
@@ -52,6 +54,7 @@ public sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         "drag_drop" => CaptureSource.DragDrop,
         "file_picker" => CaptureSource.FilePicker,
         "mobile_upload" => CaptureSource.MobileUpload,
+        "paste" => CaptureSource.Paste,
         _ => throw new ArgumentOutOfRangeException(nameof(text), text, null),
     };
 }
