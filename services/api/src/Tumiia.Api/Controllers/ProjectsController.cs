@@ -107,6 +107,41 @@ public sealed class ProjectsController : ControllerBase
         return Ok(new UploadRequestsResponse(targets.ToList()));
     }
 
+    /// <summary>Adds pasted text or a copied message to the project.</summary>
+    /// <remarks>
+    /// The text is stored unchanged as a .txt file (named after <c>title</c>, if given) and queued for analysis, like an
+    /// uploaded file. 201 with the new document; 200 with the existing document when exactly this text is already in
+    /// the project.
+    /// </remarks>
+    /// <param name="projectId">The project id.</param>
+    /// <param name="request">The request body.</param>
+    /// <param name="capturePastedText">The capture pasted text use case (supplied by the API).</param>
+    /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
+    [HttpPost("{projectId:guid}/documents/text")]
+    [EnableRateLimiting(RateLimitPolicies.Upload)]
+    [ProducesResponseType<DocumentResponse>(StatusCodes.Status201Created)]
+    [ProducesResponseType<DocumentResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, "application/problem+json")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests, "application/problem+json")]
+    public async Task<ActionResult<DocumentResponse>> PasteTextAsync(Guid projectId, PasteTextRequest request, [FromServices] CapturePastedText capturePastedText, CancellationToken cancellationToken)
+    {
+        var result = await capturePastedText.ExecuteAsync(User.GetUserId(), projectId, request.Text, request.Title, ClientIpResolver.Resolve(HttpContext), cancellationToken);
+        if (!result.ProjectFound)
+        {
+            return Problem(title: ProjectNotFound, statusCode: StatusCodes.Status404NotFound);
+        }
+
+        if (result.Error is not null)
+        {
+            return ValidationProblem(new ValidationProblemDetails(new Dictionary<string, string[]> { ["text"] = [result.Error] }));
+        }
+
+        var response = DocumentResponse.From(result.Document!);
+        return result.Duplicate ? Ok(response) : Created($"/api/v1/documents/{response.Id}", response);
+    }
+
     /// <summary>Lists a project's documents, newest first.</summary>
     /// <remarks>Filter by <c>status</c> (for example NeedsReview) and by <c>category</c> (the confirmed document type). Unfinished uploads are left out unless you ask for status PendingUpload.</remarks>
     /// <param name="projectId">The project id.</param>

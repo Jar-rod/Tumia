@@ -20,7 +20,7 @@ Backend projects and what goes in each:
 | `Tumiia.Api` | Controllers, Swagger, versioning, rate limiting, auth setup, `Program.cs` | Application, Infrastructure |
 | `Tumiia.Application` | Use cases: register, upload, analyse, confirm, correct, export | Domain |
 | `Tumiia.Domain` | Entities, value objects, confidence and classification rules, interfaces (`IOcrEngine`, `IHostedDocumentAnalyser`, `IFileStore`, …) | nothing |
-| `Tumiia.Infrastructure` | EF Core, S3, SQS, Tesseract, ONNX model, Bedrock, SES | Application, Domain |
+| `Tumiia.Infrastructure` | EF Core, S3, SQS, Bedrock (Claude), SES | Application, Domain |
 
 Rule of thumb: if it decides something, it belongs in Domain. If it talks to the outside world, it belongs in Infrastructure.
 

@@ -3,7 +3,7 @@
 Every dependency must be free for commercial use: MIT, Apache-2.0, BSD or the PostgreSQL licence
 (see `docs/CONTRIBUTING.md`). Add a row here whenever you add a package, model or tool.
 
-Licences were read from each package's own metadata (`.nuspec`) on 2026-11-04. Transitive packages pulled
+Licences were read from each package's own metadata (`.nuspec`) on 2026-11-04 (analysis packages on 2026-11-10). Transitive packages pulled
 in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-Clause or PostgreSQL.
 
 ## Shipped with the API
@@ -27,7 +27,15 @@ in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-C
 | Microsoft.IdentityModel.JsonWebTokens (+ IdentityModel tokens, protocols) | 8.23.0 / 8.19.2 | Creates and validates JWTs | MIT |
 | AWSSDK.SimpleEmailV2 (+ AWSSDK.Core) | 4.0.106.7 | Sends email through SES | Apache-2.0 |
 | AWSSDK.S3 | 4.0.104.9 | Pre-signed upload and download addresses, checking uploaded files | Apache-2.0 |
-| AWSSDK.SQS | 4.0.100.23 | Queues documents for analysis | Apache-2.0 |
+| AWSSDK.SQS | 4.0.100.23 | Queues documents for analysis, and the worker that reads the queue | Apache-2.0 |
+| Anthropic | 13.2.1 | Anthropic's official C# SDK: calls Claude through the Messages API | Apache-2.0 |
+| Anthropic.Bedrock (+ AWSSDK.SSO, AWSSDK.SSOOIDC, Microsoft.Extensions.AI.Abstractions, Microsoft.Bcl.Memory) | 1.0.1 | The Claude in Amazon Bedrock client (`bedrock-mantle` endpoint, AWS SigV4 signing) | Apache-2.0 (MIT for the Microsoft packages) |
+| PdfPig | 0.1.16 | Reads the text layer of PDFs | Apache-2.0 |
+| SkiaSharp, SkiaSharp.NativeAssets.Linux.NoDependencies (+ macOS, Win32 native assets) | 4.150.1 | Shrinks photos to JPEG before they are sent to Bedrock | MIT |
+| DocumentFormat.OpenXml (+ OpenXml.Framework, System.IO.Packaging) | 3.5.1 / 10.0.2 | Reads Word (.docx) files | MIT |
+| ExcelDataReader | 3.9.0 | Reads Excel (.xlsx, .xls) files | MIT |
+| MetadataExtractor | 2.9.3 | Reads photo EXIF data (date taken, GPS, camera) | Apache-2.0 |
+| XmpCore (transitive, MetadataExtractor) | 6.1.10.1 | XMP metadata inside photos | BSD-3-Clause (Adobe's XMP Toolkit licence; the package points to Adobe's page, so recheck before release) |
 | .NET 10 runtime and ASP.NET Core (includes the built-in rate limiter) | 10.0 | Runtime | MIT |
 
 ## Build and development only (not shipped)
@@ -53,13 +61,8 @@ in by the ones below were checked the same way; all are MIT, Apache-2.0, BSD-3-C
 | Component | Version | Used for | Licence |
 |---|---|---|---|
 | `mcr.microsoft.com/dotnet/aspnet:10.0-noble` | .NET 10 on Ubuntu 24.04 LTS | Runtime base image | MIT (.NET); Ubuntu packages under their own licences |
-| tesseract-ocr, libtesseract5, tesseract-ocr-eng | 5.3.4 (Ubuntu package) | OCR, run as a separate process | Apache-2.0 |
-| Leptonica (libleptonica6, Tesseract dependency) | Ubuntu package | Image handling for Tesseract | BSD-2-Clause |
-| sentence-transformers/all-MiniLM-L6-v2 | revision `1110a243fdf4706b3f48f1d95db1a4f5529b4d41` | Sentence embeddings (used from Phase 5) | Apache-2.0 |
-
-The model files are checked against these SHA-256 hashes when the image is built:
-`onnx/model.onnx` `6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452` (matches the hash Hugging Face
-publishes for that revision) and `vocab.txt` `07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3`.
+The image holds no OCR engine or AI model. Documents are read by Claude on Amazon Bedrock (an AWS service, not a
+dependency shipped with the API); see the README for what that means for where data is processed.
 
 ## Infrastructure (`infra/`, not shipped with the API)
 

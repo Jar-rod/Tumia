@@ -29,8 +29,7 @@ public sealed class SynthesizedStacks
         ["adminEmails"] = "owner@example.co.za",
         ["enableSwagger"] = "true",
         ["enableBedrock"] = "true",
-        ["bedrockInferenceProfileArn"] = "arn:aws:bedrock:af-south-1:123456789012:inference-profile/global.example",
-        ["bedrockModelId"] = "example.model-v1",
+        ["bedrockModelId"] = "anthropic.example-model",
     });
 
     /// <summary>The settings that give the app its own domain.</summary>

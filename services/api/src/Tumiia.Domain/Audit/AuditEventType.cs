@@ -1,6 +1,6 @@
 namespace Tumiia.Domain.Audit;
 
-/// <summary>The security events written to the audit log.</summary>
+/// <summary>The security and document events written to the audit log.</summary>
 public enum AuditEventType
 {
     Registered,
@@ -13,4 +13,6 @@ public enum AuditEventType
     LoggedOut,
     DocumentUploadRequested,
     DocumentUploaded,
+    DocumentAnalysed,
+    DocumentAnalysisFailed,
 }

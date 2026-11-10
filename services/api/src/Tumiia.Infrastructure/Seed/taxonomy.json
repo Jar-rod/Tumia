@@ -1,0 +1,180 @@
+{
+  "categories": [
+    {
+      "key": "project_site",
+      "displayName": "Project & Site",
+      "description": "Land and site records: title deeds, surveys, site plans, erf or plot details, site location and property information.",
+      "consequence": "Low",
+      "keywords": ["site", "erf", "plot", "stand", "survey", "surveyor", "land", "property", "title deed", "zoning", "boundary", "coordinates", "geotechnical", "site plan", "location"],
+      "aliases": ["site record", "land record"],
+      "patterns": ["\\b(?:erf|stand|plot|portion)\\s+(?:no\\.?\\s*)?\\d+", "\\bsurveyor[- ]general\\b"],
+      "subjectChips": ["Survey", "Boundary", "Title", "Zoning", "Soil test", "Other"],
+      "expectedFields": ["site_reference"],
+      "fieldsToSave": [
+        { "name": "site_reference", "type": "Text" },
+        { "name": "location", "type": "Text" },
+        { "name": "document_date", "type": "Date" }
+      ]
+    },
+    {
+      "key": "design",
+      "displayName": "Design",
+      "description": "Drawings, plans, sections, elevations, specifications and sketches from the architect or engineer, including CAD files.",
+      "consequence": "Low",
+      "keywords": ["drawing", "drawings", "plan", "elevation", "section", "floor plan", "scale", "specification", "architect", "architectural", "structural", "detail", "revision", "autocad", "dwg", "dxf", "layout", "sketch", "rev"],
+      "aliases": ["design drawing"],
+      "patterns": ["\\bscale\\s*1\\s*:\\s*\\d+", "\\bdrawing\\s+(?:no|number)\\b", "\\brev(?:ision)?\\s*[a-z0-9]\\b"],
+      "subjectChips": ["Floor plan", "Elevation", "Roof", "Foundations", "Electrical", "Plumbing", "Other"],
+      "expectedFields": [],
+      "fieldsToSave": [
+        { "name": "subject", "type": "Text" },
+        { "name": "party", "type": "Text" },
+        { "name": "document_date", "type": "Date" }
+      ]
+    },
+    {
+      "key": "commercial_quote",
+      "displayName": "Quote",
+      "description": "A quotation, estimate, tender, price list or bill of quantities: an offer to supply goods or do work for a price.",
+      "consequence": "Medium",
+      "keywords": ["quote", "quotation", "estimate", "tender", "proposal", "valid for", "validity", "price list", "rates", "bill of quantities", "pricing", "offer", "excl vat", "incl vat"],
+      "aliases": ["boq", "rfq"],
+      "patterns": ["\\bquot(?:e|ation)\\s*(?:no|number|#|ref)\\b", "\\bvalid\\s+(?:for|until)\\b"],
+      "subjectChips": ["Bricks", "Cement", "Sand", "Steel", "Roofing", "Labour", "Foundations", "Plumbing", "Electrical", "Other"],
+      "expectedFields": ["party", "amount", "document_date"],
+      "fieldsToSave": [
+        { "name": "party", "type": "Text", "required": true },
+        { "name": "subject", "type": "Text" },
+        { "name": "amount", "type": "Money", "required": true },
+        { "name": "currency", "type": "Text" },
+        { "name": "document_date", "type": "Date" },
+        { "name": "work_package", "type": "Text" }
+      ]
+    },
+    {
+      "key": "contract_appointment",
+      "displayName": "Contract / Appointment",
+      "description": "A contract, agreement, letter of appointment, engagement letter or purchase order between the client and a contractor, consultant or supplier.",
+      "consequence": "High",
+      "keywords": ["contract", "agreement", "appointment", "appoint", "engagement", "purchase order", "terms and conditions", "parties", "signed", "signature", "witness", "hereby", "jbcc", "scope of services", "letter of appointment"],
+      "aliases": ["po"],
+      "patterns": ["\\bthis\\s+agreement\\b", "\\b(?:the\\s+)?parties\\s+agree\\b", "\\bpurchase\\s+order\\s*(?:no|number|#)"],
+      "subjectChips": ["Builder", "Architect", "Engineer", "Supplier", "Labour", "Other"],
+      "expectedFields": ["party", "document_date"],
+      "fieldsToSave": [
+        { "name": "party", "type": "Text", "required": true },
+        { "name": "document_date", "type": "Date", "required": true },
+        { "name": "amount", "type": "Money" },
+        { "name": "currency", "type": "Text" },
+        { "name": "work_package", "type": "Text" }
+      ]
+    },
+    {
+      "key": "invoice_receipt",
+      "displayName": "Invoice / Receipt",
+      "description": "An invoice asking for payment, or a till slip or receipt for something bought.",
+      "consequence": "Medium",
+      "keywords": ["invoice", "tax invoice", "receipt", "till slip", "amount due", "due date", "vat", "subtotal", "total", "account", "balance due", "cash sale", "statement", "vat no"],
+      "aliases": ["bill"],
+      "patterns": ["\\b(?:tax\\s+)?invoice\\s*(?:no|number|#)\\b", "\\bamount\\s+due\\b", "\\bvat\\s+(?:reg(?:istration)?\\s+)?no\\b"],
+      "subjectChips": ["Bricks", "Cement", "Sand", "Steel", "Roofing", "Labour", "Hardware", "Transport", "Other"],
+      "expectedFields": ["party", "amount", "document_date"],
+      "fieldsToSave": [
+        { "name": "party", "type": "Text", "required": true },
+        { "name": "subject", "type": "Text" },
+        { "name": "amount", "type": "Money", "required": true },
+        { "name": "currency", "type": "Text" },
+        { "name": "document_date", "type": "Date" }
+      ]
+    },
+    {
+      "key": "payment",
+      "displayName": "Payment",
+      "description": "Proof that money was paid: a bank transfer confirmation, EFT proof of payment, money transfer receipt or payment confirmation.",
+      "consequence": "High",
+      "keywords": ["proof of payment", "payment confirmation", "transfer", "eft", "beneficiary", "remitter", "sender", "recipient", "transaction", "reference", "paid", "worldremit", "mpesa", "m-pesa", "bank", "account number", "successful"],
+      "aliases": ["pop"],
+      "patterns": ["\\bproof\\s+of\\s+payment\\b", "\\btransaction\\s+(?:id|ref(?:erence)?|no)\\b", "\\bpayment\\s+(?:successful|complete|confirmed)\\b"],
+      "subjectChips": ["Deposit", "Progress payment", "Materials", "Labour", "Professional fees", "Other"],
+      "expectedFields": ["amount", "document_date", "party"],
+      "fieldsToSave": [
+        { "name": "party", "type": "Text", "required": true },
+        { "name": "amount", "type": "Money", "required": true },
+        { "name": "currency", "type": "Text", "required": true },
+        { "name": "document_date", "type": "Date", "required": true }
+      ]
+    },
+    {
+      "key": "approval_legal",
+      "displayName": "Approval / Legal",
+      "description": "Official and statutory documents: building plan approval, permits, municipal letters, compliance certificates and legal notices.",
+      "consequence": "High",
+      "keywords": ["approval", "approved", "permit", "municipality", "municipal", "council", "certificate", "compliance", "occupancy", "nhbrc", "statutory", "authority", "regulation", "building control", "notice", "rcm", "legal"],
+      "aliases": ["plan approval"],
+      "patterns": ["\\bbuilding\\s+(?:plan\\s+)?(?:approval|permit)\\b", "\\bcertificate\\s+of\\s+(?:occupancy|compliance)\\b"],
+      "subjectChips": ["Building plans", "Occupancy", "Electrical", "Zoning", "Other"],
+      "expectedFields": ["site_reference", "document_date"],
+      "fieldsToSave": [
+        { "name": "party", "type": "Text" },
+        { "name": "site_reference", "type": "Text" },
+        { "name": "document_date", "type": "Date", "required": true }
+      ]
+    },
+    {
+      "key": "programme_task",
+      "displayName": "Programme / Task",
+      "description": "Schedules, programmes, timelines, Gantt charts, milestone lists and action or task lists.",
+      "consequence": "Low",
+      "keywords": ["programme", "program", "schedule", "timeline", "gantt", "milestone", "week", "start date", "end date", "completion", "duration", "task", "action list", "to do"],
+      "aliases": ["work programme"],
+      "patterns": ["\\bweek\\s+\\d+\\b", "\\bmilestone\\b"],
+      "subjectChips": ["Foundations", "Walls", "Roofing", "Finishes", "Handover", "Other"],
+      "expectedFields": ["document_date"],
+      "fieldsToSave": [
+        { "name": "subject", "type": "Text" },
+        { "name": "document_date", "type": "Date" }
+      ]
+    },
+    {
+      "key": "progress_evidence",
+      "displayName": "Progress / Evidence",
+      "description": "Site photos, progress reports, inspection reports and delivery notes that show work done or goods delivered.",
+      "consequence": "Low",
+      "keywords": ["progress", "progress report", "site visit", "inspection", "photo", "delivery note", "delivered", "goods received", "received by", "completed", "excavation", "slab", "foundation", "snag"],
+      "aliases": ["delivery"],
+      "patterns": ["\\bdelivery\\s+note\\b", "\\bgoods\\s+received\\b", "\\bprogress\\s+report\\b"],
+      "subjectChips": ["Foundations", "Excavation", "Walls", "Roofing", "Delivery", "Finishes", "Other"],
+      "expectedFields": ["document_date"],
+      "fieldsToSave": [
+        { "name": "subject", "type": "Text" },
+        { "name": "document_date", "type": "Date" },
+        { "name": "location", "type": "Text" }
+      ]
+    },
+    {
+      "key": "communication",
+      "displayName": "Communication",
+      "description": "Messages, emails, WhatsApp chats, voice-note transcripts, site instructions, notes and meeting minutes.",
+      "consequence": "Low",
+      "keywords": ["whatsapp", "message", "email", "dear", "regards", "hi", "hello", "thanks", "minutes", "meeting", "instruction", "please", "note", "voice note", "sent", "reply"],
+      "aliases": ["chat", "memo"],
+      "patterns": ["^\\[?\\d{1,2}[/.]\\d{1,2}[/.]\\d{2,4},?\\s+\\d{1,2}:\\d{2}", "\\bminutes\\s+of\\b", "\\bsite\\s+instruction\\b"],
+      "subjectChips": ["Instruction", "Question", "Update", "Meeting", "Other"],
+      "expectedFields": [],
+      "fieldsToSave": [
+        { "name": "party", "type": "Text" },
+        { "name": "subject", "type": "Text" },
+        { "name": "document_date", "type": "Date" }
+      ]
+    },
+    {
+      "key": "needs_review",
+      "displayName": "Needs Review",
+      "description": "Anything TUMIIA cannot classify confidently.",
+      "keywords": [],
+      "subjectChips": [],
+      "expectedFields": [],
+      "fieldsToSave": []
+    }
+  ]
+}

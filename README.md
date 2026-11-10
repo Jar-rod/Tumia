@@ -65,6 +65,28 @@ working when the API restarts. Emails are not sent: a password reset email is wr
 
 How the React app should handle tokens and the refresh cookie is in `docs/frontend-integration.md`.
 
+## Document analysis
+
+An uploaded or pasted document is analysed in the background within seconds (read the result with
+`GET /api/v1/documents/{id}`).
+
+- **In AWS**, documents are read and classified by **Claude Haiku 5.5 on Amazon Bedrock**
+  (`anthropic.claude-haiku-5-5`), through the Bedrock Messages API endpoint in af-south-1, signed with the ECS task
+  role. PDFs (typed or scanned) are sent as PDFs, photos as JPEG, and other files as the text TUMIIA reads from them.
+- **Data residency:** af-south-1 offers Claude only through Bedrock's *global* endpoint, so the **content of each
+  document is processed outside South Africa** (in whichever AWS region Bedrock routes to). The original files, the
+  database and the API stay in Cape Town. Bedrock's data handling is described in
+  [Data protection in Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/data-protection.html).
+- **Locally and in tests, Bedrock is off** (`Bedrock:Enabled=false`): the keyword rules classify documents and every
+  document goes to Needs Review. To try Bedrock from your machine, enable model access for Claude Haiku 5.5 in the
+  Bedrock console, sign in with AWS credentials that may call `bedrock-mantle:CreateInference`, and run the API with
+  `Bedrock__Enabled=true`. Use synthetic documents only.
+- If Bedrock fails or refuses, the keyword rules take over and the document goes to Needs Review with the reason.
+- Categories, keywords and chips are in the `taxonomy_categories` table, filled from
+  `services/api/src/Tumiia.Infrastructure/Seed/taxonomy.json` the first time they are read. Bedrock is offered the
+  categories in that table, so editing a row takes effect straight away.
+- To switch the worker off (for example while debugging the queue), set `Analysis__WorkerEnabled=false`.
+
 ## Run the tests
 
 Docker must be running: the integration tests start their own PostgreSQL and LocalStack containers.

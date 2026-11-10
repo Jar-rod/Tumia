@@ -223,6 +223,108 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
                     b.ToTable("user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("Tumiia.Domain.Analysis.DocumentAnalysis", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AnalysedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("analysed_at");
+
+                    b.Property<string>("Analyser")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("analyser");
+
+                    b.Property<string>("Band")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("band");
+
+                    b.Property<double>("ClassificationConfidence")
+                        .HasColumnType("double precision")
+                        .HasColumnName("classification_confidence");
+
+                    b.Property<string>("ContentTypeDetected")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("content_type_detected");
+
+                    b.Property<string>("DetectedLanguage")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("detected_language");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<string>("Fields")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("fields");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("PipelineVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("pipeline_version");
+
+                    b.Property<string>("ProposedCategory")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("proposed_category");
+
+                    b.Property<string>("ProposedCategoryName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("proposed_category_name");
+
+                    b.Property<string>("RunnerUpCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("runner_up_category");
+
+                    b.Property<string>("Signals")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("signals");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("summary");
+
+                    b.Property<string>("Warnings")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("warnings");
+
+                    b.HasKey("Id")
+                        .HasName("pk_document_analyses");
+
+                    b.HasIndex("DocumentId", "PipelineVersion")
+                        .IsUnique()
+                        .HasDatabaseName("ix_document_analyses_document_id_pipeline_version");
+
+                    b.ToTable("document_analyses", (string)null);
+                });
+
             modelBuilder.Entity("Tumiia.Domain.Audit.AuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -379,6 +481,15 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
                     b.Property<bool?>("ExtensionMatches")
                         .HasColumnType("boolean")
                         .HasColumnName("extension_matches");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<Guid?>("LatestAnalysisId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("latest_analysis_id");
 
                     b.Property<bool>("NeedsReview")
                         .HasColumnType("boolean")
@@ -596,6 +707,32 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Tumiia.Infrastructure.Persistence.TaxonomyCategoryRecord", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("key");
+
+                    b.Property<string>("Definition")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("definition");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Key")
+                        .HasName("pk_taxonomy_categories");
+
+                    b.ToTable("taxonomy_categories", (string)null);
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -651,6 +788,16 @@ namespace Tumiia.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("Tumiia.Domain.Analysis.DocumentAnalysis", b =>
+                {
+                    b.HasOne("Tumiia.Domain.Documents.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_analyses_documents_document_id");
                 });
 
             modelBuilder.Entity("Tumiia.Domain.Auth.RefreshToken", b =>

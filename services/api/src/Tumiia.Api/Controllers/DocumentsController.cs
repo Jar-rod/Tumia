@@ -46,6 +46,11 @@ public sealed class DocumentsController : ControllerBase
     }
 
     /// <summary>Gets one document with everything known about it.</summary>
+    /// <remarks>
+    /// Once analysed, <c>analysis</c> holds the AI's proposal: the category, a one-line summary, and each field with its
+    /// own confidence and where in the file it was found. While the status is New or Processing, <c>analysis</c> is
+    /// null; poll every few seconds.
+    /// </remarks>
     /// <param name="documentId">The document id.</param>
     /// <param name="getDocument">The get document use case (supplied by the API).</param>
     /// <param name="cancellationToken">Stops the work if the caller goes away.</param>
@@ -56,8 +61,10 @@ public sealed class DocumentsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests, "application/problem+json")]
     public async Task<ActionResult<DocumentDetailResponse>> GetAsync(Guid documentId, [FromServices] GetDocument getDocument, CancellationToken cancellationToken)
     {
-        var document = await getDocument.ExecuteAsync(User.GetUserId(), documentId, cancellationToken);
-        return document is null ? Problem(title: DocumentNotFound, statusCode: StatusCodes.Status404NotFound) : Ok(DocumentDetailResponse.From(document));
+        var details = await getDocument.ExecuteAsync(User.GetUserId(), documentId, cancellationToken);
+        return details is null
+            ? Problem(title: DocumentNotFound, statusCode: StatusCodes.Status404NotFound)
+            : Ok(DocumentDetailResponse.From(details.Document, details.LatestAnalysis));
     }
 
     /// <summary>Gets a 5-minute address to view or download the original file.</summary>

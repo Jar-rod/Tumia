@@ -193,8 +193,11 @@ stopped), plus database storage. Running, it costs about **US$2.20 a day**.
 ## Things to know
 
 - **Deletion protection** is on for the database. Deleting the stack will not delete it.
-- **Bedrock** stays off unless you set `ENABLE_BEDROCK=true` (plus `BEDROCK_INFERENCE_PROFILE_ARN` and
-  `BEDROCK_MODEL_ID`) as `prod` variables and run `infra`. Bedrock processes data **outside South Africa**.
+- **Bedrock** reads and classifies documents. It is on unless you set the `prod` variable `ENABLE_BEDROCK=false`;
+  run `infra` after changing it. Before the first deploy, open the Bedrock console in af-south-1 and enable model
+  access for **Claude Haiku 5.5**; until then every document is sorted by keywords only and goes to Needs Review.
+  `BEDROCK_MODEL_ID` (optional) picks another model, for example `anthropic.claude-sonnet-5-5`. Bedrock processes
+  document content **outside South Africa** (af-south-1 has only Bedrock's global endpoint for Claude).
 - The **Fargate tasks run in public subnets with public IPs** (no NAT Gateway). Their security group only
   accepts traffic from the load balancer.
 - The **load balancer is internal**, in its own isolated subnets, with no public address. CloudFront reaches it

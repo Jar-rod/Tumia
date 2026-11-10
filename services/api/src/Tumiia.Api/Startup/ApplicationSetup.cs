@@ -1,5 +1,6 @@
 using Tumiia.Application;
 using Tumiia.Application.Auth;
+using Tumiia.Domain.Analysis;
 using Tumiia.Domain.Documents;
 
 namespace Tumiia.Api.Startup;
@@ -9,7 +10,7 @@ public static class ApplicationSetup
 {
     private const string LocalAppAddress = "http://localhost:5173";
 
-    /// <summary>Adds every use case (one instance per request) and builds <see cref="AuthSettings"/> from configuration.</summary>
+    /// <summary>Adds every use case (one instance per request) and builds <see cref="AuthSettings"/>, the upload rules and the confidence weights from configuration.</summary>
     public static IServiceCollection AddTumiiaApplication(this IServiceCollection services)
     {
         foreach (var useCase in ApplicationUseCases.All)
@@ -21,6 +22,7 @@ public static class ApplicationSetup
             provider.GetRequiredService<IConfiguration>(),
             provider.GetRequiredService<IHostEnvironment>()));
         services.AddSingleton(provider => ReadUploadRules(provider.GetRequiredService<IConfiguration>()));
+        services.AddSingleton(provider => ReadConfidenceWeights(provider.GetRequiredService<IConfiguration>()));
 
         return services;
     }
@@ -65,6 +67,15 @@ public static class ApplicationSetup
             MaxFileSizeMb = section.GetValue("MaxFileSizeMb", 50),
             MaxFilesPerRequest = section.GetValue("MaxFilesPerRequest", 50),
         };
+    }
+
+    /// <summary>
+    /// The <c>Analysis:Weights</c> section: how much each signal counts towards the classification confidence. Any
+    /// weight left out keeps its default from the build plan.
+    /// </summary>
+    public static ConfidenceWeights ReadConfidenceWeights(IConfiguration configuration)
+    {
+        return configuration.GetSection("Analysis:Weights").Get<ConfidenceWeights>() ?? new ConfidenceWeights();
     }
 
     private static HashSet<string> ReadAdminEmails(IConfiguration configuration)

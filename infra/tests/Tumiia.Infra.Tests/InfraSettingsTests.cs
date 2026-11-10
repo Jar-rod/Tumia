@@ -23,13 +23,14 @@ public class InfraSettingsTests
     }
 
     [Fact]
-    public void FromContext_WhenBedrockIsOnWithoutAModel_Refuses()
+    public void FromContext_WhenBedrockIsOnWithoutAModel_UsesClaudeHaiku()
     {
         var context = SynthesizedStacks.Context(new() { ["enableBedrock"] = "true" });
 
-        var error = Should.Throw<ArgumentException>(() => Read(context));
+        var settings = Read(context);
 
-        error.Message.ShouldContain("bedrockModelId");
+        settings.EnableBedrock.ShouldBeTrue();
+        settings.BedrockModelId.ShouldBe("anthropic.claude-haiku-5-5");
     }
 
     [Fact]

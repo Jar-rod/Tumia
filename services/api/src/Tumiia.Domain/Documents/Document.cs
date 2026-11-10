@@ -60,6 +60,12 @@ public sealed class Document
     /// <summary>The fields a person confirmed, as JSON. Null until confirmation.</summary>
     public string? ConfirmedFields { get; private set; }
 
+    /// <summary>The newest analysis of this document. Older analyses are kept; they are never changed or removed.</summary>
+    public Guid? LatestAnalysisId { get; private set; }
+
+    /// <summary>Why the analysis gave up, in plain words, when the status is <see cref="DocumentStatus.Failed"/>.</summary>
+    public string? FailureReason { get; private set; }
+
     /// <summary>A new document waiting for its file. The id is chosen now, so the S3 key is known before the upload.</summary>
     public static Document AwaitUpload(Guid projectId, UploadFile file, CaptureSource captureSource, Guid uploadedBy)
     {
@@ -93,4 +99,59 @@ public sealed class Document
 
     /// <summary>True once the file has arrived in storage.</summary>
     public bool IsUploaded => Status != DocumentStatus.PendingUpload;
+
+    /// <summary>True while the document is waiting for, or going through, its analysis.</summary>
+    public bool IsAwaitingAnalysis => Status is DocumentStatus.New or DocumentStatus.Processing;
+
+    /// <summary>
+    /// Marks the document as being analysed. A document already Processing stays so, because a retry after a crash
+    /// starts the same analysis again.
+    /// </summary>
+    public void StartAnalysis()
+    {
+        if (!IsAwaitingAnalysis)
+        {
+            throw new InvalidOperationException($"Document {Id} is {Status}, so it cannot be analysed.");
+        }
+
+        Status = DocumentStatus.Processing;
+    }
+
+    /// <summary>
+    /// Stores the outcome of an analysis: the real file type, how much a wrong filing would matter, and where the
+    /// document goes next (filed automatically, waiting for a person to confirm, or Needs Review).
+    /// </summary>
+    public void RecordAnalysis(Guid analysisId, string contentTypeDetected, bool extensionMatches, ConsequenceLevel? consequenceLevel, DocumentStatus outcome)
+    {
+        if (Status != DocumentStatus.Processing)
+        {
+            throw new InvalidOperationException($"Document {Id} is {Status}, not being analysed.");
+        }
+
+        if (outcome is not (DocumentStatus.AutoFiled or DocumentStatus.AwaitingConfirmation or DocumentStatus.NeedsReview))
+        {
+            throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "An analysis ends in AutoFiled, AwaitingConfirmation or NeedsReview.");
+        }
+
+        LatestAnalysisId = analysisId;
+        ContentTypeDetected = contentTypeDetected;
+        ExtensionMatches = extensionMatches;
+        ConsequenceLevel = consequenceLevel;
+        Status = outcome;
+        NeedsReview = outcome == DocumentStatus.NeedsReview;
+        FailureReason = null;
+    }
+
+    /// <summary>Records that the analysis gave up on this document, so a person looks at it instead.</summary>
+    public void MarkAnalysisFailed(string reason)
+    {
+        if (!IsAwaitingAnalysis)
+        {
+            throw new InvalidOperationException($"Document {Id} is {Status}, so its analysis cannot fail.");
+        }
+
+        Status = DocumentStatus.Failed;
+        NeedsReview = true;
+        FailureReason = reason.Length > 500 ? reason[..500] : reason;
+    }
 }

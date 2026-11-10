@@ -17,6 +17,19 @@
     <PackageReference Include="AWSSDK.SimpleEmailV2" />
     <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="AWSSDK.SQS" />
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="ExcelDataReader" />
+    <PackageReference Include="MetadataExtractor" />
+    <PackageReference Include="Anthropic" />
+    <PackageReference Include="Anthropic.Bedrock" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The v1.1 categories, keywords and chips. Loaded into the database the first time the taxonomy is read. -->
+    <EmbeddedResource Include="Seed\taxonomy.json" LogicalName="Tumiia.Infrastructure.Seed.taxonomy.json" />
   </ItemGroup>
 
   <ItemGroup>

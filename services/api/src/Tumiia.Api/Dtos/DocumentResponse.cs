@@ -8,7 +8,7 @@ namespace Tumiia.Api.Dtos;
 /// <param name="OriginalFilename">The file's name when uploaded.</param>
 /// <param name="ContentTypeClaimed">The file type the browser reported.</param>
 /// <param name="SizeBytes">The file's size.</param>
-/// <param name="CaptureSource">How the file was picked.</param>
+/// <param name="CaptureSource">How the file arrived: drag_drop, file_picker, mobile_upload or paste.</param>
 /// <param name="Status">Where the document is: New, Processing, AutoFiled, AwaitingConfirmation, NeedsReview, Confirmed or Failed.</param>
 /// <param name="UploadTimestamp">When the upload finished (UTC).</param>
 /// <param name="ConsequenceLevel">How much a wrong filing would matter, once analysed.</param>

@@ -17,4 +17,10 @@ public interface IFileStore
 
     /// <summary>The stored file's size in bytes, or null when there is no file at that key.</summary>
     Task<long?> GetSizeAsync(string storageKey, CancellationToken cancellationToken);
+
+    /// <summary>The stored file's bytes, for the analysis. The file itself is never changed.</summary>
+    Task<byte[]> DownloadAsync(string storageKey, CancellationToken cancellationToken);
+
+    /// <summary>Stores a file the API made itself (pasted text). Uploaded files go straight from the browser instead.</summary>
+    Task UploadAsync(string storageKey, byte[] content, string contentType, CancellationToken cancellationToken);
 }

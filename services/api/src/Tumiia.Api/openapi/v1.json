@@ -493,6 +493,7 @@
           "Documents"
         ],
         "summary": "Gets one document with everything known about it.",
+        "description": "Once analysed, `analysis` holds the AI's proposal: the category, a one-line summary, and each field with its\nown confidence and where in the file it was found. While the status is New or Processing, `analysis` is\nnull; poll every few seconds.",
         "parameters": [
           {
             "name": "documentId",
@@ -969,6 +970,118 @@
         ]
       }
     },
+    "/api/v1/projects/{projectId}/documents/text": {
+      "post": {
+        "tags": [
+          "Projects"
+        ],
+        "summary": "Adds pasted text or a copied message to the project.",
+        "description": "The text is stored unchanged as a .txt file (named after `title`, if given) and queued for analysis, like an\nuploaded file. 201 with the new document; 200 with the existing document when exactly this text is already in\nthe project.",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "description": "The project id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteTextRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteTextRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasteTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": { }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": [ ]
+          }
+        ]
+      }
+    },
     "/api/v1/projects/{projectId}/documents": {
       "get": {
         "tags": [
@@ -1062,6 +1175,100 @@
   },
   "components": {
     "schemas": {
+      "AnalysisResponse": {
+        "required": [
+          "id",
+          "analysedAt",
+          "pipelineVersion",
+          "detectedLanguage",
+          "proposedCategory",
+          "proposedCategoryName",
+          "runnerUpCategory",
+          "classificationConfidence",
+          "band",
+          "outcome",
+          "summary",
+          "fields",
+          "signals",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The analysis id.",
+            "format": "uuid"
+          },
+          "analysedAt": {
+            "type": "string",
+            "description": "When it ran (UTC).",
+            "format": "date-time"
+          },
+          "pipelineVersion": {
+            "type": "string",
+            "description": "The version of the analysis steps."
+          },
+          "detectedLanguage": {
+            "type": "string",
+            "description": "ISO 639-1 language code, or \"und\" when it could not be told."
+          },
+          "proposedCategory": {
+            "type": "string",
+            "description": "The proposed category key, such as commercial_quote."
+          },
+          "proposedCategoryName": {
+            "type": "string",
+            "description": "The proposed category's display name, such as \"Quote\"."
+          },
+          "runnerUpCategory": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The second most likely category key, if any."
+          },
+          "classificationConfidence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "How sure the AI is about the category, from 0 to 1. Show it as words.",
+            "format": "double"
+          },
+          "band": {
+            "description": "The confidence as High, Medium or Low, using the category's thresholds.",
+            "$ref": "#/components/schemas/ConfidenceBand"
+          },
+          "outcome": {
+            "description": "What the analysis decided: AutoFiled, AwaitingConfirmation or NeedsReview.",
+            "$ref": "#/components/schemas/DocumentStatus"
+          },
+          "summary": {
+            "type": "string",
+            "description": "One plain line, such as \"Quote from ABC Supplies for Bricks — R18,450.00, 12 Oct 2026.\""
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractedFieldResponse"
+            },
+            "description": "The facts found, each with its own confidence and evidence. The first is always document_type."
+          },
+          "signals": {
+            "description": "The signals behind the classification confidence.",
+            "$ref": "#/components/schemas/ConfidenceSignals"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Reading problems and confidence limits, in plain words."
+          }
+        },
+        "description": "What the AI proposed for a document. It is never changed; a person's confirmation is stored separately."
+      },
       "AuthResponse": {
         "required": [
           "accessToken",
@@ -1090,8 +1297,77 @@
         "enum": [
           "drag_drop",
           "file_picker",
-          "mobile_upload"
+          "mobile_upload",
+          "paste"
         ]
+      },
+      "ConfidenceBand": {
+        "enum": [
+          "Low",
+          "Medium",
+          "High"
+        ]
+      },
+      "ConfidenceSignals": {
+        "required": [
+          "winnerProbability",
+          "margin",
+          "readability",
+          "agreement",
+          "expectedFieldsFound",
+          "formatMatches"
+        ],
+        "type": "object",
+        "properties": {
+          "winnerProbability": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "margin": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "readability": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "agreement": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "expectedFieldsFound": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "formatMatches": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
       },
       "ConsequenceLevel": {
         "enum": [
@@ -1157,7 +1433,9 @@
           "correctionFlag",
           "confirmedBy",
           "confirmedAt",
-          "confirmedFields"
+          "confirmedFields",
+          "failureReason",
+          "analysis"
         ],
         "type": "object",
         "properties": {
@@ -1218,9 +1496,27 @@
               }
             ],
             "description": "The confirmed fields, as JSON, once confirmed."
+          },
+          "failureReason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why the analysis gave up, when the status is Failed."
+          },
+          "analysis": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AnalysisResponse"
+              }
+            ],
+            "description": "The latest analysis, or null while the document is New or Processing."
           }
         },
-        "description": "Everything about one document. The analysis (proposed category, fields and their confidence) is added in the\nnext phase."
+        "description": "Everything about one document, including the AI's latest analysis (proposed category, fields and their\nconfidence) once it has run."
       },
       "DocumentResponse": {
         "required": [
@@ -1267,7 +1563,7 @@
             "format": "int64"
           },
           "captureSource": {
-            "description": "How the file was picked.",
+            "description": "How the file arrived: drag_drop, file_picker, mobile_upload or paste.",
             "$ref": "#/components/schemas/CaptureSource"
           },
           "status": {
@@ -1325,6 +1621,92 @@
           "Confirmed",
           "Failed"
         ]
+      },
+      "ExtractedFieldResponse": {
+        "required": [
+          "name",
+          "value",
+          "confidence",
+          "band",
+          "evidence",
+          "method"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The field, such as document_type, party, amount, currency, document_date, subject."
+          },
+          "value": {
+            "type": "string",
+            "description": "The value: dates as yyyy-MM-dd, amounts as plain numbers (\"18450.00\"), currencies as ISO codes (\"ZAR\")."
+          },
+          "confidence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "From 0 to 1, for this field alone. Show it as words, not as a number.",
+            "format": "double"
+          },
+          "band": {
+            "description": "The confidence as High, Medium or Low (High at 0.75 or more, Medium at 0.50 or more).",
+            "$ref": "#/components/schemas/ConfidenceBand"
+          },
+          "evidence": {
+            "description": "Where it was found.",
+            "$ref": "#/components/schemas/FieldEvidenceResponse"
+          },
+          "method": {
+            "type": "string",
+            "description": "How it was found: hosted (the AI on Bedrock), regex, keyword or exif."
+          }
+        },
+        "description": "One fact the AI found. These are suggestions until a person confirms them."
+      },
+      "FieldEvidenceResponse": {
+        "required": [
+          "source",
+          "page",
+          "line",
+          "snippet"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "description": "What it was read from: bedrock (the AI read it), text, exif or classification."
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The page (or sheet) number, when it came from the text.",
+            "format": "int32"
+          },
+          "line": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The line number on that page.",
+            "format": "int32"
+          },
+          "snippet": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A short quote of the words it came from. Ends \"(not found in the document's text)\" when the AI's quote could not be checked against the typed text."
+          }
+        },
+        "description": "Where a fact was found in the original file."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -1396,6 +1778,28 @@
           }
         },
         "description": "Email and password."
+      },
+      "PasteTextRequest": {
+        "required": [
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "text": {
+            "maxLength": 200000,
+            "type": "string",
+            "description": "The text, exactly as pasted. Stored unchanged as a .txt file."
+          },
+          "title": {
+            "maxLength": 100,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "An optional title, used as the file name (\"Site instruction\" becomes \"Site instruction.txt\")."
+          }
+        },
+        "description": "Text or a message the user pasted in."
       },
       "ProblemDetails": {
         "type": "object",
